@@ -109,25 +109,25 @@ CodeBuddyForAAF/
 
 **示例：**
 ```
-你: \"升级 mna-application 的 AAF 版本\"
+你: "升级 Template-AAF 的 AAF 版本"
    → 自动识别项目模块，查找实际版本并升级
 
-你: \"我要给 LibDownload 添加 LibOkhttpWrapper 依赖\"
+你: "我要给 LibDownload 添加 LibOkhttpWrapper 依赖"
    → 指导正确添加依赖
 
-你: \"提交规范\"
+你: "提交规范"
    → 自动分析变更，生成符合规范的 Commit Message
 
-你: \"帮我给这个类添加注释\"
+你: "帮我给这个类添加注释"
    → 生成标准格式的注释
 
-你: \"如何查找 common-debug 的版本\"
+你: "如何查找 common-debug 的版本"
    → 提供 AAF 模块版本查找方法和步骤
 
-你: \"总结一下 mna-application 的提交\"
+你: "总结一下当前项目的提交"
    → 分析待提交变更，生成提交信息建议
 
-你: \"后续都自动运行\"
+你: "后续都自动运行"
    → 每次修改代码后自动编译、安装、启动应用
 ```
 

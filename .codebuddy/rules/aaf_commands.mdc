@@ -92,7 +92,6 @@ git commit -m "feat(rules): 添加 Git 提交规范
 - 提供规范的提交信息建议
 
 **支持项目**：
-- mna-application
 - Template-AAF
 - Template_Android
 - Template-Empty
@@ -186,7 +185,7 @@ git commit -m "feat(rules): 添加 Git 提交规范
 
 **使用示例**：
 ```
-你: "总结一下 mna-application 的提交"
+你: "总结一下当前项目的提交"
    → 执行 git status 和 git diff
    → 分析待提交的变更内容
    → 生成变更总结和提交信息建议
@@ -298,7 +297,7 @@ git commit -m "feat(rules): 添加 Git 提交规范
 
 **使用示例：**
 ```
-你: "升级 mna-application 的 AAF 版本"
+你: "升级 Template-AAF 的 AAF 版本"
    → 自动识别项目使用的 AAF 模块
    → 查找各模块实际版本
    → 生成升级报告并执行更新
@@ -400,7 +399,7 @@ git commit -m "feat(rules): 添加 Git 提交规范
 
 | 场景 | 说什么 | 执行什么 |
 |-----|-------|---------| 
-| 升级 AAF 版本 | "升级 mna-application 的 AAF 版本" | AAF 版本升级 |
+| 升级 AAF 版本 | "升级 Template-AAF 的 AAF 版本" | AAF 版本升级 |
 | 调试代码 | "debug 一下 XX 模块" | 代码调试助手 |
 | 修改了代码 | "更新文档" | 文档同步检查 |
 | 要发布了 | "发布检查" | 完整发布检查 |

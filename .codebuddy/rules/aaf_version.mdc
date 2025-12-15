@@ -28,7 +28,7 @@ provider:
 
 ### 1. AAF 项目配置文件
 
-**位置**: `/Volumes/Document/Documents/github/AndroidAppFactory/`
+**位置**: `AndroidAppFactory/`（与 CodeBuddyForAAF 同级目录）
 
 | 文件 | 说明 |
 |-----|------|
@@ -77,7 +77,7 @@ com.bihe0832.android:common-debug:x.x.x
 在 AAF 项目的 `dependencies_*.gradle` 文件中搜索：
 
 ```bash
-cd /Volumes/Document/Documents/github/AndroidAppFactory
+cd AndroidAppFactory
 grep -r '"artifactId".*:.*"common-debug"' dependencies_*.gradle
 ```
 
@@ -202,7 +202,7 @@ curl -s "https://repo1.maven.org/maven2/com/bihe0832/android/lib-router-compiler
 
 ```bash
 # 在所有配置文件中查找 artifactId
-cd /Volumes/Document/Documents/github/AndroidAppFactory
+cd AndroidAppFactory
 grep -r '"artifactId".*:.*"模块名"' dependencies_*.gradle
 
 # 示例：查找 common-debug

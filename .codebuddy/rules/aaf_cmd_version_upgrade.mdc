@@ -17,8 +17,8 @@ provider:
 - "更新 AAF 版本"
 
 **示例：**
-- "升级 mna-application 的 AAF 版本"
-- "更新 Template-AAF 的 AAF 依赖"
+- "升级 Template-AAF 的 AAF 版本"
+- "更新 Template_Android 的 AAF 依赖"
 
 ---
 
@@ -66,16 +66,14 @@ aaf_asr_version = '8.0.1'          // lib-asr-wrapper 的版本
 
 | 项目名称 | 项目路径 |
 |---------|---------|
-| `mna-application` | `/Volumes/Document/Documents/mna/mna-application` |
-| `Template-AAF` | `/Volumes/Document/Documents/github/Template-AAF` |
-| `Template_Android` | `/Volumes/Document/Documents/github/Template_Android` |
-| `Template-Empty` | `/Volumes/Document/Documents/github/Template-Empty` |
+| `Template-AAF` | `Template-AAF/`（与 CodeBuddyForAAF 同级目录） |
+| `Template_Android` | `Template_Android/`（与 CodeBuddyForAAF 同级目录） |
+| `Template-Empty` | `Template-Empty/`（与 CodeBuddyForAAF 同级目录） |
 
 **查找方法：**
 ```bash
-# 在常见路径中搜索项目
-find /Volumes/Document/Documents/github -maxdepth 1 -type d -name "*项目名*"
-find /Volumes/Document/Documents/mna -maxdepth 1 -type d -name "*项目名*"
+# 在同级目录中搜索项目
+ls -d ../*项目名* 2>/dev/null
 ```
 
 ### 步骤 2：识别项目使用的 AAF 模块
@@ -123,7 +121,7 @@ aaf_asr_version = '8.0.0'
 
 **AAF 项目路径：**
 ```
-/Volumes/Document/Documents/github/AndroidAppFactory
+AndroidAppFactory/（与 CodeBuddyForAAF 同级目录）
 ```
 
 **查找方法**（详见 `aaf_version.mdc`）：
@@ -131,7 +129,7 @@ aaf_asr_version = '8.0.0'
 1. **根据 artifactId 精确查找**（推荐）
 
    ```bash
-   cd /Volumes/Document/Documents/github/AndroidAppFactory
+   cd AndroidAppFactory
    
    # 查找模块配置文件
    grep -r '"artifactId".*:.*"common-wrapper"' dependencies_*.gradle
@@ -248,8 +246,8 @@ chore(deps): 升级 AAF 依赖版本
 ```
 ✅ AAF 版本升级完成
 
-**项目：** mna-application
-**配置文件：** /Volumes/Document/Documents/mna/mna-application/config.gradle
+**项目：** Template-AAF
+**配置文件：** Template-AAF/config.gradle
 
 **变更内容：**
 - aaf_version: 8.0.0 → 8.0.1
@@ -271,7 +269,7 @@ chore(deps): 升级 AAF 依赖版本
 ℹ️ AAF 版本检查完成
 
 **项目：** Template-AAF
-**配置文件：** /Volumes/Document/Documents/github/Template-AAF/config.gradle
+**配置文件：** Template-AAF/config.gradle
 
 **检查结果：**
 - aaf_version: 8.0.1 ✓ (已是最新)
@@ -318,7 +316,7 @@ chore(deps): 升级 AAF 依赖版本
 **推荐查找方法**（详见 `aaf_version.mdc`）：
 
 ```bash
-cd /Volumes/Document/Documents/github/AndroidAppFactory
+cd AndroidAppFactory
 
 # 根据 artifactId 精确查找
 grep -r '"artifactId".*:.*"common-wrapper"' dependencies_*.gradle
