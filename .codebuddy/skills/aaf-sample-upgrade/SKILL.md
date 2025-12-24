@@ -15,6 +15,43 @@ description: 升级 AAF Sample 项目（Template-AAF、Template_Android、Templa
 - ✅ 灵活处理特殊情况和错误
 - ✅ 引用现有 rules 避免重复（aaf_version、aaf_dependency、aaf_git）
 
+## 任务进度展示（必须）
+
+**AI 必须使用 `todo_write` 工具展示升级进度**，让用户清晰了解当前状态。
+
+### 初始化任务列表
+
+用户触发升级后，立即创建任务列表：
+
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "定位项目位置"},
+  {"id": "2", "status": "pending", "content": "读取 AAF 最新配置"},
+  {"id": "3", "status": "pending", "content": "升级 Template-AAF（第一优先级）"},
+  {"id": "4", "status": "pending", "content": "升级 Template_Android（第二优先级）"},
+  {"id": "5", "status": "pending", "content": "升级 Template-Empty（第三优先级）"},
+  {"id": "6", "status": "pending", "content": "生成变更报告"},
+  {"id": "7", "status": "pending", "content": "提供提交建议"}
+]
+```
+
+### 状态更新规则
+
+- 每完成一个步骤，更新对应任务为 `completed`，下一个任务为 `in_progress`
+- 使用 `merge=true` 只更新变化的任务
+- Template-AAF 完成后，任务 4 和 5 可同时设为 `in_progress`（并发升级）
+
+### 并发升级时的进度更新
+
+```
+Template-AAF 编译成功后：
+todo_write(merge=true, todos=[
+  {"id": "3", "status": "completed", "content": "升级 Template-AAF（第一优先级）"},
+  {"id": "4", "status": "in_progress", "content": "升级 Template_Android（第二优先级）"},
+  {"id": "5", "status": "in_progress", "content": "升级 Template-Empty（第三优先级）"}
+])
+```
+
 ## 工作流程决策树
 
 当用户触发此 skill 时：
@@ -22,11 +59,13 @@ description: 升级 AAF Sample 项目（Template-AAF、Template_Android、Templa
 ```
 用户请求
     ↓
-确定项目位置
+【创建任务列表】- 使用 todo_write 显示 7 个步骤
     ↓
-读取 AAF 最新配置
+确定项目位置 ✅ → 更新进度
     ↓
-升级 Template-AAF（第一优先级）⭐ [必须先完成]
+读取 AAF 最新配置 ✅ → 更新进度
+    ↓
+升级 Template-AAF（第一优先级）⭐ [必须先完成] ✅ → 更新进度
     ├─ 更新配置
     ├─ 同步依赖  
     ├─ 同步 Compose UI 代码
@@ -35,6 +74,7 @@ description: 升级 AAF Sample 项目（Template-AAF、Template_Android、Templa
     ↓
 ┌─────────────────────────────────────────────────────┐
 │ 并发升级（Template-AAF 成功后可同时进行）          │
+│ 任务 4 和 5 同时设为 in_progress                   │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  升级 Template_Android        升级 Template-Empty  │
@@ -45,11 +85,11 @@ description: 升级 AAF Sample 项目（Template-AAF、Template_Android、Templa
 │                                                     │
 └─────────────────────────────────────────────────────┘
     ↓
-等待两个项目都完成
+等待两个项目都完成 ✅ → 更新进度
     ↓
-生成变更报告
+生成变更报告 ✅ → 更新进度
     ↓
-提供提交建议
+提供提交建议 ✅ → 全部完成
 ```
 
 **并发执行优势**：
