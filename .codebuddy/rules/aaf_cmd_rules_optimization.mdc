@@ -25,6 +25,24 @@ provider:
 
 ## ⚙️ 执行流程
 
+### 📋 任务进度展示
+
+**执行规则优化时，必须使用 todo_write 工具创建任务列表展示进度：**
+
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "扫描所有规则文件"},
+  {"id": "2", "status": "pending", "content": "检查格式一致性和命名规范"},
+  {"id": "3", "status": "pending", "content": "检查任务展示需求"},
+  {"id": "4", "status": "pending", "content": "执行优化操作"},
+  {"id": "5", "status": "pending", "content": "生成优化报告"}
+]
+```
+
+**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
+
+---
+
 ### 步骤 1: 扫描所有规则文件
 
 ```bash
@@ -383,10 +401,91 @@ mv aaf_demo.mdc demo/
 - [ ] 统一时间戳
 - [ ] 精简冗余内容
 - [ ] 优化文档结构
+- [ ] **检查任务展示需求**（见下方详细说明）
 - [ ] 更新 README.md
 - [ ] 评估目录结构
 - [ ] 提供优化建议
 - [ ] 确认所有变更无误
+
+---
+
+## 📋 任务展示检查规则
+
+### 检查目的
+
+对于多步骤的命令规则（`aaf_cmd_*.mdc`），检查是否需要添加 `todo_write` 任务展示，以便用户清晰了解执行进度。
+
+### 判断标准
+
+**需要添加任务展示的规则**：
+- ✅ 执行步骤 ≥ 3 步
+- ✅ 包含多个独立的检查/操作阶段
+- ✅ 执行时间较长（如编译、网络请求等）
+- ✅ 需要用户中途确认的流程
+
+**不需要添加任务展示的规则**：
+- ❌ 单一操作的简单规则
+- ❌ 纯配置/规范类文件（非 `aaf_cmd_*`）
+- ❌ 执行步骤 < 3 步的简单命令
+
+### 检查流程
+
+```
+1. 筛选所有 aaf_cmd_*.mdc 文件
+2. 检查每个命令规则的执行步骤数
+3. 判断是否已有任务展示说明
+4. 如果步骤 ≥ 3 且无任务展示，标记为需要添加
+5. 生成任务展示模板并添加到规则中
+```
+
+### 任务展示模板
+
+对于需要添加任务展示的规则，在"执行流程"章节开头添加：
+
+```markdown
+### 📋 任务进度展示
+
+**执行时，必须使用 todo_write 工具创建任务列表展示进度：**
+
+\`\`\`json
+[
+  {"id": "1", "status": "in_progress", "content": "步骤1描述"},
+  {"id": "2", "status": "pending", "content": "步骤2描述"},
+  {"id": "3", "status": "pending", "content": "步骤3描述"},
+  ...
+]
+\`\`\`
+
+**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
+```
+
+### 已添加任务展示的规则
+
+| 规则文件 | 任务数 | 状态 |
+|---------|--------|------|
+| `aaf_cmd_version_upgrade.mdc` | 6 | ✅ 已添加 |
+| `aaf_cmd_release_check.mdc` | 6 | ✅ 已添加 |
+| `aaf_cmd_doc_management.mdc` | 5 | ✅ 已添加 |
+| `aaf_cmd_doc_inspection.mdc` | 5 | ✅ 已添加 |
+| `aaf_cmd_rules_optimization.mdc` | 5 | ✅ 已添加 |
+| `aaf_cmd_sample_upgrade.mdc` | - | ℹ️ 由 skill 处理 |
+| `aaf_cmd_doc_inspection.mdc` | - | 待检查 |
+
+### 检查输出格式
+
+```
+📋 任务展示检查结果：
+
+✅ 已有任务展示：
+   - aaf_cmd_version_upgrade.mdc (6 个任务)
+
+⚠️ 建议添加任务展示：
+   - aaf_cmd_sample_upgrade.mdc (5 个步骤)
+   - aaf_cmd_release_check.mdc (4 个步骤)
+
+ℹ️ 无需任务展示：
+   - aaf_cmd_doc_inspection.mdc (2 个步骤)
+```
 
 ---
 

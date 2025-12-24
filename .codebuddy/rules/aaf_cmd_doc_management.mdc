@@ -176,6 +176,36 @@ implementation 'com.bihe0832.android:[maven-artifact]:+'
 
 ## 完整生成流程
 
+### 📋 任务进度展示
+
+**执行文档生成/更新时，必须使用 todo_write 工具创建任务列表展示进度：**
+
+**完整生成模式：**
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "分析目标模块源码"},
+  {"id": "2", "status": "pending", "content": "识别主要功能和 API"},
+  {"id": "3", "status": "pending", "content": "生成文档内容"},
+  {"id": "4", "status": "pending", "content": "确定文档路径"},
+  {"id": "5", "status": "pending", "content": "更新 SUMMARY.md 索引"}
+]
+```
+
+**增量更新模式：**
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "检测模块变更"},
+  {"id": "2", "status": "pending", "content": "分析变更内容"},
+  {"id": "3", "status": "pending", "content": "查找对应文档"},
+  {"id": "4", "status": "pending", "content": "生成更新建议"},
+  {"id": "5", "status": "pending", "content": "执行文档更新"}
+]
+```
+
+**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
+
+---
+
 ### 1. 分析目标模块
 
 ```bash

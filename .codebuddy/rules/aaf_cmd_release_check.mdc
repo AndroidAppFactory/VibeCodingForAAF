@@ -162,6 +162,25 @@ git branch --show-current
 
 ## 检查流程
 
+### 📋 任务进度展示
+
+**执行发布检查时，必须使用 todo_write 工具创建任务列表展示进度：**
+
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "模块版本号检查"},
+  {"id": "2", "status": "pending", "content": "文档同步检查"},
+  {"id": "3", "status": "pending", "content": "修改模块完整性检查"},
+  {"id": "4", "status": "pending", "content": "编译检查"},
+  {"id": "5", "status": "pending", "content": "Git 状态检查"},
+  {"id": "6", "status": "pending", "content": "生成检查报告"}
+]
+```
+
+**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
+
+---
+
 ### Step 1: 模块版本号检查
 
 ```bash

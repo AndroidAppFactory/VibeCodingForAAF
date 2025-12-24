@@ -58,6 +58,25 @@ aaf_asr_version = '8.0.1'          // lib-asr-wrapper 的版本
 
 ## 🔄 自动执行流程
 
+### 📋 任务进度展示
+
+**执行升级时，必须使用 todo_write 工具创建任务列表展示进度：**
+
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "定位目标项目"},
+  {"id": "2", "status": "pending", "content": "识别 AAF 模块"},
+  {"id": "3", "status": "pending", "content": "查找模块最新版本"},
+  {"id": "4", "status": "pending", "content": "生成升级报告"},
+  {"id": "5", "status": "pending", "content": "执行版本更新"},
+  {"id": "6", "status": "pending", "content": "生成提交信息"}
+]
+```
+
+**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
+
+---
+
 ### 步骤 1：定位目标项目
 
 根据用户提供的项目名称，定位项目路径。

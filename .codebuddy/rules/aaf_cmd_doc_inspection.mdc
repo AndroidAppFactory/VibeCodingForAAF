@@ -12,6 +12,25 @@ provider:
 当用户说"巡检"或者"文档巡检"时，自动执行以下检查流程。
 
 ## 巡检任务
+
+### 📋 任务进度展示
+
+**执行文档巡检时，必须使用 todo_write 工具创建任务列表展示进度：**
+
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "扫描 AndroidAppFactory 模块"},
+  {"id": "2", "status": "pending", "content": "扫描 AndroidAppFactory-Doc 文档"},
+  {"id": "3", "status": "pending", "content": "检查 SUMMARY.md 索引"},
+  {"id": "4", "status": "pending", "content": "对比分析模块与文档"},
+  {"id": "5", "status": "pending", "content": "生成巡检报告"}
+]
+```
+
+**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
+
+---
+
 1. **扫描 AndroidAppFactory 目录**
    - 识别所有模块、组件、功能目录
    - 记录模块结构和主要功能点
