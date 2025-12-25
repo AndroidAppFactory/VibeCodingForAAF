@@ -2,7 +2,7 @@
 description: AAF 规则优化指南 - 规则文件的优化、重构和目录结构管理
 alwaysApply: false
 enabled: true
-updatedAt: 2025-11-28T08:00:00.000Z
+updatedAt: 2025-12-25T10:00:00.000Z
 provider: 
 ---
 
@@ -34,8 +34,9 @@ provider:
   {"id": "1", "status": "in_progress", "content": "扫描所有规则文件"},
   {"id": "2", "status": "pending", "content": "检查格式一致性和命名规范"},
   {"id": "3", "status": "pending", "content": "检查任务展示需求"},
-  {"id": "4", "status": "pending", "content": "执行优化操作"},
-  {"id": "5", "status": "pending", "content": "生成优化报告"}
+  {"id": "4", "status": "pending", "content": "检查 Skill 文件"},
+  {"id": "5", "status": "pending", "content": "执行优化操作"},
+  {"id": "6", "status": "pending", "content": "生成优化报告"}
 ]
 ```
 
@@ -93,9 +94,31 @@ ls -lh *.mdc
    - 检查 `updatedAt` 字段
    - 建议统一为最新优化时间
 
-### 步骤 3: 识别优化点
+### 步骤 4: 检查 Skill 文件
 
-**常见问题**：
+**扫描 Skill 文件**：
+```bash
+ls -R .codebuddy/skills/
+```
+
+| 检查项 | 要求 |
+|--------|------|
+| 目录结构 | `skills/{skill-name}/SKILL.md` + `assets/` + `references/` |
+| SKILL.md | 包含完整的技能定义和执行流程 |
+| assets | 模板文件与规范保持同步 |
+| references | 参考文件完整且最新 |
+| 模板一致性 | 模板需符合最新的页面/项目规范 |
+
+**Skill 常见问题**：
+- ❌ 模板与规范不同步
+- ❌ 资源文件冗余
+- ❌ 技能定义不完整
+- ❌ references 文件过期
+- ❌ 目录结构不规范
+
+### 步骤 5: 识别优化点
+
+**规则文件常见问题**：
 - ❌ 规则文件过大（> 500 行）
 - ❌ 重复的示例和说明
 - ❌ 过度详细的实现细节
@@ -103,8 +126,14 @@ ls -lh *.mdc
 - ❌ 过时的时间戳
 - ❌ 缺失的规则描述
 - ❌ 命名不规范（命令文件未使用 `aaf_cmd_` 前缀）
+- ❌ 多步骤规则缺少任务展示
 
-### 步骤 5: 执行优化
+**Skill 常见问题**：
+- ❌ 模板与规范不同步
+- ❌ 资源文件冗余
+- ❌ 技能定义不完整
+
+### 步骤 6: 执行优化
 
 **优化操作**：
 1. **统一命名规范**
@@ -126,13 +155,25 @@ ls -lh *.mdc
    - 统一所有规则文件的 `updatedAt`
    - 格式：`2025-11-27T12:00:00.000Z`
 
-5. **优化项目根目录 README.md**
+5. **同步 Skill 模板**
+   - 确保 Skill 模板符合最新规范
+   - 更新过期的 references 文件
+   - 清理冗余资源
+
+6. **添加任务展示**
+   - 为多步骤规则添加 `todo_write`
+
+7. **优化项目根目录 README.md**
    - 更新规则文件列表到最新
    - 同步最新的命名规范
    - 确保文件列表准确无误
    - 注：规则目录本身不需要 README，避免冗余
 
-### 步骤 6: 评估目录结构
+### 步骤 7: 生成优化报告
+
+输出格式见下方"📊 优化输出格式"章节。
+
+### 步骤 8: 评估目录结构
 
 **检查是否需要分层**：
 - 规则文件数量
@@ -411,22 +452,28 @@ mv aaf_demo.mdc demo/
 
 ## 📋 任务展示检查规则
 
-### 检查目的
+### 适用场景
 
-对于多步骤的命令规则（`aaf_cmd_*.mdc`），检查是否需要添加 `todo_write` 任务展示，以便用户清晰了解执行进度。
+以下类型的规则**应该**使用 `todo_write` 展示任务进度：
+- 批量检查类（如检查多个文件）
+- 多步骤生成类（如生成多个文件）
+- 复杂流程类（如 3+ 步骤的操作）
+- 执行时间较长（如编译、网络请求等）
+
+以下类型的规则**不需要**任务展示：
+- 单步操作（如查看状态）
+- 简单查询（如读取文件）
+- 纯配置/规范类文件（非 `aaf_cmd_*`）
 
 ### 判断标准
 
-**需要添加任务展示的规则**：
-- ✅ 执行步骤 ≥ 3 步
-- ✅ 包含多个独立的检查/操作阶段
-- ✅ 执行时间较长（如编译、网络请求等）
-- ✅ 需要用户中途确认的流程
-
-**不需要添加任务展示的规则**：
-- ❌ 单一操作的简单规则
-- ❌ 纯配置/规范类文件（非 `aaf_cmd_*`）
-- ❌ 执行步骤 < 3 步的简单命令
+| 条件 | 需要任务展示 |
+|------|-------------|
+| 步骤数 ≥ 3 | ✅ 是 |
+| 涉及多个文件 | ✅ 是 |
+| 执行时间 > 30秒 | ✅ 是 |
+| 需要用户等待 | ✅ 是 |
+| 单步操作 | ❌ 否 |
 
 ### 检查流程
 
@@ -451,8 +498,7 @@ mv aaf_demo.mdc demo/
 [
   {"id": "1", "status": "in_progress", "content": "步骤1描述"},
   {"id": "2", "status": "pending", "content": "步骤2描述"},
-  {"id": "3", "status": "pending", "content": "步骤3描述"},
-  ...
+  {"id": "3", "status": "pending", "content": "步骤3描述"}
 ]
 \`\`\`
 
@@ -463,13 +509,18 @@ mv aaf_demo.mdc demo/
 
 | 规则文件 | 任务数 | 状态 |
 |---------|--------|------|
+| `aaf_cmd_rules_optimization.mdc` | 6 | ✅ 已添加 |
 | `aaf_cmd_version_upgrade.mdc` | 6 | ✅ 已添加 |
 | `aaf_cmd_release_check.mdc` | 6 | ✅ 已添加 |
 | `aaf_cmd_doc_management.mdc` | 5 | ✅ 已添加 |
 | `aaf_cmd_doc_inspection.mdc` | 5 | ✅ 已添加 |
-| `aaf_cmd_rules_optimization.mdc` | 5 | ✅ 已添加 |
 | `aaf_cmd_sample_upgrade.mdc` | - | ℹ️ 由 skill 处理 |
-| `aaf_cmd_doc_inspection.mdc` | - | 待检查 |
+| `aaf_commands.mdc` | - | ℹ️ 索引文件，无需 |
+| `aaf_common.mdc` | - | ℹ️ 规范文件，无需 |
+| `aaf_git.mdc` | - | ℹ️ 规范文件，无需 |
+| `aaf_dependency.mdc` | - | ℹ️ 规范文件，无需 |
+| `aaf_demo.mdc` | - | ℹ️ 说明文件，无需 |
+| `aaf_note.mdc` | - | ℹ️ 备忘录，无需 |
 
 ### 检查输出格式
 
@@ -477,14 +528,22 @@ mv aaf_demo.mdc demo/
 📋 任务展示检查结果：
 
 ✅ 已有任务展示：
+   - aaf_cmd_rules_optimization.mdc (6 个任务)
    - aaf_cmd_version_upgrade.mdc (6 个任务)
+   - aaf_cmd_release_check.mdc (6 个任务)
+   - aaf_cmd_doc_management.mdc (5 个任务)
+   - aaf_cmd_doc_inspection.mdc (5 个任务)
 
-⚠️ 建议添加任务展示：
-   - aaf_cmd_sample_upgrade.mdc (5 个步骤)
-   - aaf_cmd_release_check.mdc (4 个步骤)
+ℹ️ 由 Skill 处理：
+   - aaf_cmd_sample_upgrade.mdc
 
 ℹ️ 无需任务展示：
-   - aaf_cmd_doc_inspection.mdc (2 个步骤)
+   - aaf_commands.mdc (索引文件)
+   - aaf_common.mdc (规范文件)
+   - aaf_git.mdc (规范文件)
+   - aaf_dependency.mdc (规范文件)
+   - aaf_demo.mdc (说明文件)
+   - aaf_note.mdc (备忘录)
 ```
 
 ---
