@@ -1,0 +1,111 @@
+---
+description: AAF 代码更新规则 - 批量拉取工作区内所有项目的最新代码
+alwaysApply: false
+enabled: true
+updatedAt: 2025-12-24T10:00:00.000Z
+provider: 
+---
+
+# AAF 代码更新规则
+
+## 📋 命令触发
+
+当用户说以下关键词时，自动执行此规则：
+- "更新代码"
+- "拉取代码"
+- "pull 代码"
+- "同步代码"
+- "更新所有项目"
+
+---
+
+## 🔄 自动执行流程
+
+### 📋 任务进度展示
+
+**执行时，必须使用 todo_write 工具创建任务列表展示进度：**
+
+```json
+[
+  {"id": "1", "status": "in_progress", "content": "读取工作区配置"},
+  {"id": "2", "status": "pending", "content": "检查各项目 Git 状态"},
+  {"id": "3", "status": "pending", "content": "拉取最新代码"},
+  {"id": "4", "status": "pending", "content": "生成更新报告"}
+]
+```
+
+**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
+
+---
+
+### 步骤 1：读取工作区配置
+
+**从 `*.code-workspace` 文件获取项目列表：**
+
+```bash
+# 读取工作区配置文件
+cat *.code-workspace
+```
+
+**解析 `folders` 数组中的 `path` 字段，获取所有项目路径。**
+
+### 步骤 2：检查各项目 Git 状态
+
+对每个项目执行：
+```bash
+cd <项目目录>
+git status --short
+```
+
+**状态分类：**
+- ✅ 干净 - 无未提交变更，可直接 pull
+- ⚠️ 有变更 - 有未提交的修改，需要用户确认
+- ❌ 冲突 - 存在合并冲突，跳过
+
+### 步骤 3：拉取最新代码
+
+对状态干净的项目执行：
+```bash
+cd <项目目录>
+git pull --rebase
+```
+
+**处理策略：**
+- 干净项目：直接 pull
+- 有变更项目：询问用户是否 stash 后 pull
+- 冲突项目：跳过并报告
+
+### 步骤 4：生成更新报告
+
+输出格式：
+```
+📋 代码更新报告
+
+✅ 更新成功：
+   - ProjectA (main: abc1234 → def5678)
+   - ProjectB (master: 111aaaa → 222bbbb)
+
+⚠️ 跳过（有本地变更）：
+   - ProjectC (3 files modified)
+
+❌ 更新失败：
+   - ProjectD (原因: 网络超时)
+
+📊 统计：成功 X / 跳过 Y / 失败 Z
+```
+
+---
+
+## ⚠️ 注意事项
+
+1. **不自动处理有变更的项目** - 避免丢失本地修改
+2. **使用 --rebase** - 保持提交历史整洁
+3. **网络问题重试** - 单个项目失败不影响其他项目
+4. **报告所有结果** - 让用户了解每个项目的状态
+
+---
+
+## 🔗 相关规则
+
+- `aaf_cmd_version_upgrade.mdc` - AAF 版本升级
+- `aaf_git.mdc` - Git 提交规范
