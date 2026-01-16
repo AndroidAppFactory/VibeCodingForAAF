@@ -2,7 +2,7 @@
 description: AAF 规则优化指南 - 规则文件的优化、重构和目录结构管理
 alwaysApply: false
 enabled: true
-updatedAt: 2025-12-25T10:00:00.000Z
+updatedAt: 2026-01-16T12:00:00.000Z
 provider: 
 ---
 
@@ -273,21 +273,24 @@ AAF 规则文件采用统一的命名规范，便于管理和识别：
 
 ## 📂 目录结构管理
 
-### 当前状态（2025-11-27）
+### 当前状态（2026-01-16）
 
-**规则文件数量**: 11 个
+**规则文件数量**: 14 个
 ```
-aaf_commands.mdc                   # 命令索引（11KB）
-aaf_cmd_demo_upgrade.mdc          # 命令：示例项目升级
+aaf_commands.mdc                   # 命令索引（17KB）
+aaf_cmd_code_update.mdc           # 命令：代码更新
 aaf_cmd_doc_inspection.mdc        # 命令：文档巡检
 aaf_cmd_doc_management.mdc        # 命令：文档管理
 aaf_cmd_release_check.mdc         # 命令：发布检查
 aaf_cmd_rules_optimization.mdc    # 命令：规则优化
+aaf_cmd_sample_upgrade.mdc        # 命令：示例项目升级
+aaf_cmd_version_upgrade.mdc       # 命令：版本升级
 aaf_common.mdc                     # 通用规范
 aaf_demo.mdc                       # Demo 说明（临时开发用）
 aaf_dependency.mdc                 # 依赖管理
 aaf_git.mdc                        # Git 规范
-aaf_note.mdc                       # 备忘录
+aaf_note.mdc                       # 注释规范
+aaf_version.mdc                    # 版本查找
 ```
 
 **命名规范**：
@@ -297,12 +300,12 @@ aaf_note.mdc                       # 备忘录
 
 **项目区分**：
 - **aaf_demo.mdc** - 临时开发用的 Demo 项目说明
-- **aaf_cmd_sample_upgrade.mdc** - 外部示例项目（Template_Android/Template-AAF）升级命令
+- **aaf_cmd_sample_upgrade.mdc** - 外部示例项目（Template_Android/Template-AAF/Template-Empty）升级命令
 
 **建议**: ✅ **保持扁平结构，暂不分层**
 
 **理由**:
-- 数量适中（11 个）
+- 数量适中（14 个）
 - 统一前缀清晰
 - 一目了然，易于查找
 
@@ -514,13 +517,15 @@ mv aaf_demo.mdc demo/
 | `aaf_cmd_release_check.mdc` | 6 | ✅ 已添加 |
 | `aaf_cmd_doc_management.mdc` | 5 | ✅ 已添加 |
 | `aaf_cmd_doc_inspection.mdc` | 5 | ✅ 已添加 |
+| `aaf_cmd_code_update.mdc` | 4 | ✅ 已添加 |
 | `aaf_cmd_sample_upgrade.mdc` | - | ℹ️ 由 skill 处理 |
 | `aaf_commands.mdc` | - | ℹ️ 索引文件，无需 |
 | `aaf_common.mdc` | - | ℹ️ 规范文件，无需 |
 | `aaf_git.mdc` | - | ℹ️ 规范文件，无需 |
 | `aaf_dependency.mdc` | - | ℹ️ 规范文件，无需 |
 | `aaf_demo.mdc` | - | ℹ️ 说明文件，无需 |
-| `aaf_note.mdc` | - | ℹ️ 备忘录，无需 |
+| `aaf_note.mdc` | - | ℹ️ 注释规范，无需 |
+| `aaf_version.mdc` | - | ℹ️ 版本查找，无需 |
 
 ### 检查输出格式
 
@@ -533,6 +538,7 @@ mv aaf_demo.mdc demo/
    - aaf_cmd_release_check.mdc (6 个任务)
    - aaf_cmd_doc_management.mdc (5 个任务)
    - aaf_cmd_doc_inspection.mdc (5 个任务)
+   - aaf_cmd_code_update.mdc (4 个任务)
 
 ℹ️ 由 Skill 处理：
    - aaf_cmd_sample_upgrade.mdc
@@ -543,7 +549,8 @@ mv aaf_demo.mdc demo/
    - aaf_git.mdc (规范文件)
    - aaf_dependency.mdc (规范文件)
    - aaf_demo.mdc (说明文件)
-   - aaf_note.mdc (备忘录)
+   - aaf_note.mdc (注释规范)
+   - aaf_version.mdc (版本查找)
 ```
 
 ---
@@ -554,9 +561,9 @@ mv aaf_demo.mdc demo/
 ✅ 规则文件扫描完成
 
 📂 当前状态：
-   - 规则文件数量：11 个
-   - 总行数：2500+ 行
-   - 最大文件：aaf_doc_management.mdc (17KB)
+   - 规则文件数量：14 个
+   - 总行数：3000+ 行
+   - 最大文件：aaf_cmd_doc_management.mdc (18KB)
    - 目录结构：扁平结构
 
 🔍 发现的问题：
