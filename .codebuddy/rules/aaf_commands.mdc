@@ -62,8 +62,8 @@ provider:
 
 | 命令关键词 | 执行规则 | 功能 |
 |-----------|---------|------|
-| `更新文档` `同步文档` | `aaf_cmd_doc_management.mdc` | 检测变更并同步文档 |
-| `生成文档` `整理文档` | `aaf_cmd_doc_management.mdc` | 为模块生成/整理文档 |
+| `更新文档` `同步文档` | `aaf_cmd_doc_management.mdc` → `aaf-doc-generator` Agent | 检测变更并同步文档 |
+| `生成文档` `整理文档` | `aaf_cmd_doc_management.mdc` → `aaf-doc-generator` Agent | 为模块生成/整理文档 |
 | `文档巡检` `巡检` | `aaf_cmd_doc_inspection.mdc` | 检查模块与文档对应关系 |
 
 ### 发布相关
@@ -128,6 +128,7 @@ provider:
 | `aaf-project-finder` | 定位 AAF 相关项目位置 |
 | `aaf-config-reader` | 读取 AAF 最新配置和版本信息 |
 | `aaf-sample-updater` | 执行单个 Sample 项目升级 |
+| `aaf-doc-generator` | 分析模块源码，生成/更新文档内容 |
 
 ### Skill 文件
 

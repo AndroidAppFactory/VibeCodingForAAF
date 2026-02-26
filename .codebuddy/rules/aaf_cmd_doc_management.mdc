@@ -1,8 +1,8 @@
 ---
-description: AAF 文档管理规则 - 文档生成、同步和更新的统一管理
+description: AAF 文档管理规则 - 文档生成、同步和更新的统一入口
 alwaysApply: false
 enabled: true
-updatedAt: 2026-02-26T12:00:00.000Z
+updatedAt: 2026-02-26T18:00:00.000Z
 provider: 
 ---
 
@@ -14,148 +14,56 @@ provider:
 - "同步文档" / "更新文档" / "文档同步" → 增量更新模式
 - 修改 AndroidAppFactory 模块代码后（可选，需用户确认）
 
-## 执行模式
+## 执行流程
 
-### 模式 1：完整生成模式
+### Step 1：定位项目路径
 
-适用：新模块创建文档、重新整理文档、文档不存在
+使用 `aaf-project-finder` Agent 定位：
+- `AndroidAppFactory` — AAF 框架核心（必须）
+- `AndroidAppFactory-Doc` — 文档仓库（必须）
 
-流程：分析模块源码 → 识别功能和 API → 按模板生成文档 → 更新 SUMMARY.md 索引
+### Step 2：判断模式
 
-### 模式 2：增量更新模式
+| 触发词 | 模式 | Agent 参数 |
+|--------|------|-----------|
+| "生成文档"、"整理文档" | 完整生成 | `mode=generate, module=[模块名]` |
+| "同步文档"、"更新文档" | 增量更新 | `mode=update` |
+| 无法判断 + 文档不存在 | 完整生成 | 自动 |
+| 无法判断 + 文档存在 | 增量更新 | 自动 |
 
-适用：代码变更后更新文档、发布前检查、定期同步
+### Step 3：调用 Agent
 
-流程：检测变更（git diff）→ 分析变更内容 → 查找对应文档 → 生成更新建议 → 用户确认后更新
+调用 `aaf-doc-generator` Agent，传入：
+- `mode` — generate 或 update
+- `module` — 目标模块名（完整生成时必须）
+- `aaf_path` — AndroidAppFactory 绝对路径
+- `doc_path` — AndroidAppFactory-Doc 绝对路径
 
-### 模式 3：智能判断（推荐）
+### Step 4：Agent 执行
 
-文档不存在 → 完整生成；存在且有代码变更 → 增量更新；存在且无变更 → 完整重新生成
+Agent 会：
+1. 分析源码，生成/更新文档，**直接写入文档文件**
+2. 检查 SUMMARY.md 索引，返回更新建议（**不会直接修改**）
 
-## 文档标准格式
+### Step 5：处理 SUMMARY.md 更新建议
 
-### 核心规则：一个模块一个文档
-
-- 每个 AAF 模块必须有独立文档文件，禁止合并
-- 文档名称使用 maven artifact id：`LibAudio` → `lib-audio.md`
-
-### 基础模板
-
-```markdown
-# [模块名]
-
-![模块名](https://img.shields.io/badge/AndroidAppFactory-[模块名]-brightgreen)
-[ ![Github](https://img.shields.io/badge/Github-[模块名]-brightgreen?style=social) ](https://github.com/bihe0832/AndroidAppFactory/tree/master/[模块目录])
-[ ![Maven Central](https://img.shields.io/maven-central/v/com.bihe0832.android/[maven-artifact]) ](https://search.maven.org/artifact/com.bihe0832.android/[maven-artifact])
-
-## 功能简介
-[简洁描述主要功能和适用场景]
-
-## 组件信息
-
-#### 引用仓库
-引用仓库可以参考 [组件使用](./../start.md) 中添加依赖的部分
-
-#### 组件使用
-\```groovy
-implementation 'com.bihe0832.android:[maven-artifact]:+'
-\```
-
-## 组件功能
-### [主要功能类]
-- 功能说明、主要方法、使用示例
-```
-
-### 文档编写原则
-
-定位：**功能介绍 + 接口手册**
-
-包含：模块功能说明、适用场景、公共 API 使用说明、参数和返回值、使用示例
-不包含：性能优化细节、内部实现逻辑、版本演进历史
-
-## 完整生成流程
-
-### 1. 分析目标模块
-
-```bash
-cd ../AndroidAppFactory
-find [模块名]/src/main/java [模块名]/src/main/kotlin -type f
-```
-
-重点：模块功能、适用场景、公共 API。不关注内部实现。
-
-### 2. 生成文档内容
-
-参考 LibAAF 文档格式，按标准模板组织。
-
-### 3. 确定文档路径
-
-| 模块类型 | 文档路径 |
-|---------|---------|
-| 基础功能模块 | `use/libs/noui/` |
-| UI 相关模块 | `use/libs/ui/` |
-| 公共组件 | `use/common/` |
-| 三方组件 | `use/services/` |
-| 路由组件 | `use/router/` |
-
-文件名：直接使用 maven artifact id，如 `lib-aaf-tools.md`
-
-### 4. 更新 SUMMARY.md 索引
-
-**强制要求**：新建文档必须更新 SUMMARY.md 索引
-
-操作规则：
-- 必须先向用户提供建议的插入位置，经确认后再执行
-- 禁止未经确认直接修改 SUMMARY.md
-- 排序依据：按 dependencies.gradle 的加载顺序和模块定义顺序
-
-dependencies 文件加载顺序：
-1. `dependencies_lib.gradle`
-2. `dependencies_common.gradle`
-3. `dependencies_lock_widget.gradle`
-4. `dependencies_tbs.gradle`
-5. `dependencies_services.gradle`
-6. `dependencies_asr.gradle`
-7. `dependencies_deprecated.gradle`
-
-## 增量更新流程
-
-### 1. 检测模块变更
-
-```bash
-cd ../AndroidAppFactory
-LAST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-CHANGED_MODULES=$(git diff --name-only $LAST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base" | grep -v "^\." | grep -v "^gradle" | grep -v "^build")
-```
-
-### 2. 分析变更内容
-
-关注：新增功能、新增公共 API、修改的方法签名、API 废弃标记、使用方式变更
-不关注：性能优化细节、内部逻辑、注释变更
-
-### 3. 检查对应文档
-
-在 AndroidAppFactory-Doc 的 `use/` 目录下查找对应模块文档。
-
-### 4. 生成更新建议
-
-更新优先级：
-- **高**（必须更新）：新增功能/API、方法签名变更、使用方式变更
-- **中**（建议更新）：功能增强、新增可选参数
-- **低**（无需更新）：性能优化、内部重构、Bug 修复
+Agent 返回后，如有 SUMMARY.md 更新建议：
+1. 向用户展示建议的插入位置和索引条目
+2. **等待用户明确确认**后再修改 SUMMARY.md
 
 ## 注意事项
 
-1. 文档更新需用户确认，不自动提交
-2. 参考标准模板格式，包含功能介绍和接口说明
-3. 示例代码使用最新 API
-4. SUMMARY.md 索引修改必须经用户确认
+1. 文档文件由 Agent 直接写入，无需用户确认
+2. SUMMARY.md 索引修改**必须**经用户确认
+3. 文档定位是功能介绍 + 接口手册，不写内部实现
 
 ## 与其他规则的关系
 
 ```
-aaf_doc_management (文档管理)
-├── 协作 → aaf_doc_inspection (检查文档完整性)
-├── 集成 → aaf_release_check (发布前自动触发)
+aaf_cmd_doc_management (入口规则)
+├── 调用 → aaf-project-finder (定位项目)
+├── 调用 → aaf-doc-generator (生成/更新文档内容)
+├── 协作 → aaf_cmd_doc_inspection (检查文档完整性)
+├── 集成 → aaf_cmd_release_check (发布前自动触发)
 └── 参考 → aaf_common (项目结构和路径)
 ```
