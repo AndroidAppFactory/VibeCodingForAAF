@@ -1,122 +1,17 @@
 ---
-description: AAF Git 提交规范 - Commit Message 格式和 AI 提交流程
+description: AAF Git Scope 补充 - AAF 项目专属的 Scope 列表
 alwaysApply: true
 enabled: true
-updatedAt: 2026-02-26T12:00:00.000Z
+updatedAt: 2026-02-26T17:00:00.000Z
 provider: 
 ---
 
-# AAF Git 提交规范
+# AAF Git Scope 补充
 
-## 强制执行规则
+> 通用 Git 规范见 user 级 `zixie_git.mdc`，本文件仅补充 AAF 项目专属 Scope。
 
-### 禁止行为
+## AAF 常用 Scope
 
-AI 绝对不能在以下情况执行 `git commit` 或 `git push`：
-
-1. 用户没有明确授权（"执行"、"可以"、"提交吧"等）
-2. 用户只是查看变更（"看看"、"检查"等）
-3. 之前的授权已用完（每次提交需重新授权）
-4. 发现问题需要再次提交时（必须重新展示方案）
-5. 任何模糊不清的情况
-
-### 强制流程
-
-```
-检查变更 → 分析内容 → 生成提交信息 → 展示方案 → 询问用户 → 等待授权 → 执行
-```
-
-### 授权规则
-
-- 一次授权仅限一次提交操作，不可重复使用
-- 授权词汇："可以"、"执行"、"提交吧"、"帮我执行"、"确认"、"OK"、选择选项编号
-- 拒绝词汇："不"、"取消"、"等等"、"我自己来"
-
-### 授权确认清单
-
-执行 git commit/push 前必须确认：
-- 已向用户展示完整提交方案
-- 已明确询问"是否执行？"
-- 用户在本次对话中明确回复了授权词汇
-- 该授权针对当前这次提交
-
-### 始终允许的只读操作
-
-`git status`、`git diff`、`git log`、生成提交信息、提供命令建议
-
----
-
-## Commit Message 规范
-
-### 基本格式
-
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-### Type（提交类型）
-
-| Type | 说明 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | Bug 修复 |
-| `docs` | 文档变更 |
-| `style` | 代码格式调整（不影响功能） |
-| `refactor` | 代码重构 |
-| `perf` | 性能优化 |
-| `test` | 测试相关 |
-| `build` | 构建系统或外部依赖变更 |
-| `ci` | CI/CD 配置变更 |
-| `chore` | 其他杂项 |
-| `revert` | 回退提交 |
-
-### Scope（影响范围）
-
-使用模块名或功能名。AAF 常用 Scope：
 - AAF 核心模块：`LibAAF`、`LibDownload`、`LibNetwork`、`LibFile`、`LibThread`、`LibImage` 等
-- 通用：`docs`、`deps`、`gradle`、`config`、`demo`、`template`、`release`
+- 通用：`gradle`、`demo`、`template`、`release`
 - CodeBuddyForAAF：`rules`、`skills`、`agents`、`init`
-
-### Subject（简短描述）
-
-- 使用中文，动词开头（"添加"而非"添加了"）
-- 不超过 50 字符，结尾不加句号
-
-### Body / Footer
-
-- Body 可选，用列表格式说明修改内容
-- Footer 可选，关闭 Issue 用 `Closes #123`，不兼容变更用 `BREAKING CHANGE:`
-
----
-
-## 提交前检查
-
-```
-□ git status / git diff 查看变更
-□ 无敏感信息（API Key、密码、Token）
-□ 无自动生成文件（build/、.idea/）
-□ 无临时文件（*.tmp、*.log）
-□ 代码通过编译
-□ 移除未使用的 import
-```
-
----
-
-## 提交流程
-
-> 具体的提交执行流程由 `aaf-git-commit` Skill 实现，此处仅定义规范。
-
-1. 检查变更（git status/diff）
-2. 分析变更内容和影响范围
-3. 生成符合规范的 Commit Message
-4. 展示提交方案，询问用户
-5. 等待明确授权后执行
-6. 提交后询问是否推送
-
-### "总结提交"特殊说明
-
-当用户说"总结一下XX的提交"时，指的是**待提交的变更**（git status/diff），不是已提交历史（git log）。

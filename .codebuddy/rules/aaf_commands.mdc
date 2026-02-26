@@ -1,8 +1,8 @@
 ---
-description: AAF 命令索引 - 统一的命令入口，快速执行各种开发任务
+description: AAF 命令索引 - AAF 项目专属命令的统一入口
 alwaysApply: true
 enabled: true
-updatedAt: 2026-02-26T12:00:00.000Z
+updatedAt: 2026-02-26T17:00:00.000Z
 provider: 
 ---
 
@@ -10,33 +10,11 @@ provider:
 
 ## 说明
 
-本文档是 AAF 框架所有开发命令的统一入口。通过简单的关键词即可触发对应的规则/Skill 执行。
+本文档是 AAF 项目专属命令的入口。通用命令（代码更新、规则优化、Git 提交、调试）见 user 级 `zixie_commands.mdc`。
 
-## 特殊命令行为
+## AAF 专属命令
 
-### 1. Git 提交助手
-
-**触发关键词**："准备提交"、"提交代码"、"帮我提交"、"commit"、"总结一下XX的提交"
-
-**执行 Skill**: `aaf-git-commit`
-
-自动检查变更 → 分析内容 → 生成提交方案 → 展示并等待授权 → 执行提交
-
-注意："总结提交"查看的是待提交变更（git status/diff），不是已提交历史。
-
----
-
-### 2. 规则优化
-
-**触发关键词**："优化规则"、"重构规则"、"整理规则文件"
-
-**执行规则**: `aaf_cmd_rules_optimization.mdc`
-
-扫描 .codebuddy/ 下所有文件（Rules、Agents、Skills），检查格式一致性、命名规范、内容冗余、职责边界，执行优化。
-
----
-
-### 3. 升级项目 AAF 版本
+### 1. 升级项目 AAF 版本
 
 **触发关键词**："升级 XXX 的 AAF 版本"、"更新 AAF 依赖"
 
@@ -48,7 +26,7 @@ provider:
 
 ---
 
-### 4. 升级示例项目
+### 2. 升级示例项目
 
 **触发关键词**："升级sample"、"升级demo"、"更新Template"、"升级示例项目"
 
@@ -58,27 +36,17 @@ provider:
 
 ---
 
-### 5. 更新代码
+### 3. 代码调试（AAF 增强）
 
-**触发关键词**："更新代码"、"拉取代码"、"pull 代码"、"同步代码"
-
-**执行规则**: `aaf_cmd_code_update.mdc`
-
-扫描工作区 Git 项目 → 检查状态 → 对干净项目执行 git pull --rebase → 跳过有本地变更的项目
-
----
-
-### 6. 代码调试
-
-**触发关键词**："debug XX"、"调试 XX"、"帮我排查 XX 问题"
+**触发关键词**："debug AAF 的 XX"、"调试 AAF 的 LibXXX"
 
 **执行 Skill**: `aaf-debug`
 
-智能识别模块 → 询问问题现象 → 添加调试日志 → 用户运行后说"结束" → 分析日志 → 清理
+在 user 级 debug 流程基础上，增加 AAF 模块识别（LibXXX、CommonXXX）。
 
 ---
 
-### 7. Demo 自动运行
+### 4. Demo 自动运行
 
 **触发关键词**："后续都自动运行"、"自动运行"
 
@@ -111,10 +79,7 @@ provider:
 | 命令关键词 | 执行对象 | 功能 |
 |-----------|---------|------|
 | `升级 AAF 版本` | `aaf_cmd_version_upgrade.mdc` | 升级项目 AAF 依赖 |
-| `debug XX` `调试 XX` | `aaf-debug` Skill | 代码调试助手 |
 | `添加依赖` | `aaf_dependency.mdc` | 依赖管理规范 |
-| `添加注释` `注释规范` | `aaf_note.mdc` | 注释规范指导 |
-| `准备提交` `commit` | `aaf-git-commit` Skill | Git 提交助手 |
 | `查询版本` `模块版本` | `aaf_version.mdc` | 模块版本查找 |
 
 ### 检查相关
@@ -139,41 +104,22 @@ provider:
 
 ---
 
-## 命令速查表
-
-| 场景 | 说什么 | 执行什么 |
-|-----|-------|---------| 
-| 更新代码 | "更新代码" | 批量拉取最新代码 |
-| 升级 AAF | "升级 Template-AAF 的 AAF 版本" | 版本升级 |
-| 升级示例项目 | "升级 sample" | Sample 项目批量升级 |
-| 调试代码 | "debug XX 模块" | 调试助手 |
-| 修改了代码 | "更新文档" | 文档同步 |
-| 要发布 | "发布检查" | 完整检查 |
-| 文档检查 | "文档巡检" | 文档完整性检查 |
-| 提交代码 | "准备提交" | Git 提交助手 |
-| 自动运行 | "后续都自动运行" | 自动编译安装启动 |
-
----
-
 ## 相关文件
 
-### 规则文件
+### 规则文件（AAF 专属）
 
 | 文件 | 说明 |
 |-----|------|
 | `aaf_common.mdc` | 通用开发规范（alwaysApply） |
-| `aaf_git.mdc` | Git 提交规范（alwaysApply） |
+| `aaf_git.mdc` | AAF Scope 补充（alwaysApply） |
 | `aaf_demo.mdc` | Demo 开发规范（alwaysApply） |
 | `aaf_dependency.mdc` | 依赖管理规范（alwaysApply） |
-| `aaf_note.mdc` | 注释规范（alwaysApply） |
 | `aaf_version.mdc` | 模块版本查找方法 |
 | `aaf_cmd_doc_management.mdc` | 文档管理规则 |
 | `aaf_cmd_doc_inspection.mdc` | 文档巡检规则 |
 | `aaf_cmd_release_check.mdc` | 发布前检查规则 |
 | `aaf_cmd_version_upgrade.mdc` | 版本升级规则 |
 | `aaf_cmd_sample_upgrade.mdc` | 示例项目升级规则 |
-| `aaf_cmd_code_update.mdc` | 代码更新规则 |
-| `aaf_cmd_rules_optimization.mdc` | 规则优化规则 |
 
 ### Agent 文件
 
@@ -187,6 +133,16 @@ provider:
 
 | Skill | 触发关键词 | 功能 |
 |-------|-----------|------|
-| `aaf-debug` | "debug XX"、"调试 XX" | 代码调试助手 |
-| `aaf-git-commit` | "准备提交"、"commit" | Git 提交助手 |
+| `aaf-debug` | "debug AAF 的 XX" | AAF 模块调试助手（增强版） |
 | `aaf-sample-upgrade` | "升级 sample" | Sample 项目批量升级 |
+
+### User 级通用（由 AIConfig 提供）
+
+| 文件 | 说明 |
+|-----|------|
+| `zixie_git.mdc` | Git 提交规范 |
+| `zixie_note.mdc` | 注释规范 |
+| `zixie_cmd_code_update.mdc` | 代码更新 |
+| `zixie_cmd_rules_optimization.mdc` | 规则优化 |
+| `git-commit` Skill | Git 提交助手 |
+| `debug` Skill | 通用调试助手 |
