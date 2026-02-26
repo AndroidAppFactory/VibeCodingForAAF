@@ -2,594 +2,108 @@
 description: AAF 规则优化指南 - 规则文件的优化、重构和目录结构管理
 alwaysApply: false
 enabled: true
-updatedAt: 2026-01-16T12:00:00.000Z
+updatedAt: 2026-02-26T12:00:00.000Z
 provider: 
 ---
 
 # AAF 规则优化指南
 
-## 📖 规则说明
-
-本规则用于优化和重构 `.codebuddy/rules/` 目录下的所有规则文件，确保规则文件的简洁性、一致性和可维护性。
-
----
-
-## 🎯 触发条件
+## 触发条件
 
 当用户说出以下关键词时，自动执行本规则：
-- "优化规则"
-- "重构规则"
-- "整理规则文件"
+- "优化规则" / "重构规则" / "整理规则文件"
 
----
+## 检查范围
 
-## ⚙️ 执行流程
+优化时需要扫描 `.codebuddy/` 下的三个子目录：
 
-### 📋 任务进度展示
+| 目录 | 内容 | 检查重点 |
+|------|------|---------|
+| `rules/*.mdc` | 规则文件 | 命名规范、格式一致性、内容冗余、文件大小 |
+| `agents/*.md` | Agent 定义 | 职责单一性、输入输出格式、与 Skill/Rule 的职责边界 |
+| `skills/*/` | Skill 定义 | SKILL.md 完整性、资源文件是否冗余、与 Agent 的职责划分 |
 
-**执行规则优化时，必须使用 todo_write 工具创建任务列表展示进度：**
+## 执行流程
 
-```json
-[
-  {"id": "1", "status": "in_progress", "content": "扫描所有规则文件"},
-  {"id": "2", "status": "pending", "content": "检查格式一致性和命名规范"},
-  {"id": "3", "status": "pending", "content": "检查任务展示需求"},
-  {"id": "4", "status": "pending", "content": "检查 Skill 文件"},
-  {"id": "5", "status": "pending", "content": "执行优化操作"},
-  {"id": "6", "status": "pending", "content": "生成优化报告"}
-]
-```
-
-**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
-
----
-
-### 步骤 1: 扫描所有规则文件
+### 步骤 1：扫描所有文件
 
 ```bash
-cd .codebuddy/rules/
-ls -lh *.mdc
-```
-
-**检查项**：
-- 规则文件数量
-- 文件大小
-- 命名规范一致性
-- 目录结构合理性
-
-### 步骤 2: 检查命名规范
-
-**统一的命名规范**：
-- `aaf_commands.mdc` - 主索引文件（特殊）
-- `aaf_cmd_*.mdc` - 命令规则文件（可执行的命令）
-- `aaf_*.mdc` - 配置/规范文件（非命令）
-
-**检查要点**：
-- ✅ 命令文件是否都使用 `aaf_cmd_` 前缀
-- ✅ 配置文件是否使用 `aaf_` 前缀（非 cmd）
-- ✅ 文件名是否语义清晰
-- ✅ 是否有命名不规范的文件
-
-**命名规范的优势**：
-- 一目了然地区分命令和配置
-- 便于文件管理和查找
-- 统一的命名风格
-- 未来分层时更容易识别
-
-### 步骤 3: 分析规则文件内容
-
-**对每个规则文件进行检查**：
-1. **格式一致性**
-   - YAML frontmatter 是否完整
-   - `description`, `alwaysApply`, `enabled`, `updatedAt` 字段
-   - Markdown 格式是否统一
-
-2. **内容质量**
-   - 是否有冗余说明
-   - 是否有重复内容
-   - 示例是否过度详细
-   - 交叉引用是否合理
-
-3. **时间戳统一**
-   - 检查 `updatedAt` 字段
-   - 建议统一为最新优化时间
-
-### 步骤 4: 检查 Skill 文件
-
-**扫描 Skill 文件**：
-```bash
+ls -lh .codebuddy/rules/*.mdc
+ls -lh .codebuddy/agents/*.md
 ls -R .codebuddy/skills/
 ```
 
-| 检查项 | 要求 |
-|--------|------|
-| 目录结构 | `skills/{skill-name}/SKILL.md` + `assets/` + `references/` |
-| SKILL.md | 包含完整的技能定义和执行流程 |
-| assets | 模板文件与规范保持同步 |
-| references | 参考文件完整且最新 |
-| 模板一致性 | 模板需符合最新的页面/项目规范 |
-
-**Skill 常见问题**：
-- ❌ 模板与规范不同步
-- ❌ 资源文件冗余
-- ❌ 技能定义不完整
-- ❌ references 文件过期
-- ❌ 目录结构不规范
-
-### 步骤 5: 识别优化点
-
-**规则文件常见问题**：
-- ❌ 规则文件过大（> 500 行）
-- ❌ 重复的示例和说明
-- ❌ 过度详细的实现细节
-- ❌ 不一致的格式和风格
-- ❌ 过时的时间戳
-- ❌ 缺失的规则描述
-- ❌ 命名不规范（命令文件未使用 `aaf_cmd_` 前缀）
-- ❌ 多步骤规则缺少任务展示
-
-**Skill 常见问题**：
-- ❌ 模板与规范不同步
-- ❌ 资源文件冗余
-- ❌ 技能定义不完整
-
-### 步骤 6: 执行优化
-
-**优化操作**：
-1. **统一命名规范**
-   - 命令文件重命名为 `aaf_cmd_*.mdc`
-   - 配置文件使用 `aaf_*.mdc`
-   - 确保文件名语义清晰
-
-2. **精简内容**
-   - 移除冗余说明
-   - 合并重复内容
-   - 简化过长示例
-
-3. **统一格式**
-   - 统一标题层级
-   - 统一代码块格式
-   - 统一列表格式
-
-4. **更新时间戳**
-   - 统一所有规则文件的 `updatedAt`
-   - 格式：`2025-11-27T12:00:00.000Z`
-
-5. **同步 Skill 模板**
-   - 确保 Skill 模板符合最新规范
-   - 更新过期的 references 文件
-   - 清理冗余资源
-
-6. **添加任务展示**
-   - 为多步骤规则添加 `todo_write`
-
-7. **优化项目根目录 README.md**
-   - 更新规则文件列表到最新
-   - 同步最新的命名规范
-   - 确保文件列表准确无误
-   - 注：规则目录本身不需要 README，避免冗余
-
-### 步骤 7: 生成优化报告
-
-输出格式见下方"📊 优化输出格式"章节。
-
-### 步骤 8: 评估目录结构
-
-**检查是否需要分层**：
-- 规则文件数量
-- 规则文件分类
-- 查找和管理难度
-
----
-
-## 📏 优化原则
-
-### 1. 简洁性
-- 去除冗余说明和重复内容
-- 保留核心规则和关键信息
-- 避免过度详细的示例
-
-### 2. 一致性
-- 统一格式、风格、时间戳
-- 统一命名规范（`aaf_cmd_` 和 `aaf_` 前缀）
-- 统一文档结构
-
-### 3. 实用性
-- 保留核心规则
-- 移除过度详细的示例
-- 确保规则可执行
-
-### 4. 清晰性
-- 提升可读性
-- 提升可维护性
-- 减少交叉引用的复杂度
-
-### 5. 规范性
-- 命令文件统一使用 `aaf_cmd_` 前缀
-- 配置文件使用 `aaf_` 前缀
-- 文件名语义清晰，便于识别
-
----
-
-## 📝 命名规范详解
-
-### 统一的命名规范
-
-AAF 规则文件采用统一的命名规范，便于管理和识别：
-
-#### 1. 主索引文件
-- **文件名**: `aaf_commands.mdc`
-- **作用**: 所有命令的统一入口
-- **特点**: 唯一的主索引文件
-
-#### 2. 命令规则文件
-- **命名格式**: `aaf_cmd_*.mdc`
-- **标识**: `cmd` 表示这是一个可执行的命令
-- **示例**:
-  - `aaf_cmd_sample_upgrade.mdc` - 示例项目升级命令
-  - `aaf_cmd_doc_management.mdc` - 文档管理命令
-  - `aaf_cmd_release_check.mdc` - 发布检查命令
-  - `aaf_cmd_rules_optimization.mdc` - 规则优化命令
-
-#### 3. 配置/规范文件
-- **命名格式**: `aaf_*.mdc` (非 cmd)
-- **作用**: 配置、规范、说明类文件
-- **示例**:
-  - `aaf_common.mdc` - 通用规范
-  - `aaf_git.mdc` - Git 提交规范
-  - `aaf_dependency.mdc` - 依赖管理规范
-  - `aaf_demo.mdc` - Demo 项目说明
-  - `aaf_note.mdc` - 备忘录
-
-### 命名规范的优势
-
-#### ✅ 一目了然
-- 看文件名就知道是命令还是配置
-- `aaf_cmd_*` = 可以执行的命令
-- `aaf_*` = 规范、配置、说明
-
-#### ✅ 易于分类
-- 命令文件自然聚合（按字母排序）
-- 配置文件独立分组
-- 便于快速定位
-
-#### ✅ 便于管理
-- 新增命令：使用 `aaf_cmd_` 前缀
-- 新增规范：使用 `aaf_` 前缀
-- 统一风格，降低维护成本
-
-#### ✅ 未来扩展
-- 分层时更容易识别文件类型
-- 便于批量操作和重命名
-- 支持更灵活的目录结构
-
-### 命名规范说明
-
-**Sample vs Demo 概念**：详细区分参见 `aaf_common.mdc` 第 1.2 节
-- Sample（示例项目）- Template_Android、Template-AAF
-- Demo（演示项目）- Template-Empty 等内部开发项目
-
----
-
-## 📂 目录结构管理
-
-### 当前状态（2026-01-16）
-
-**规则文件数量**: 14 个
-```
-aaf_commands.mdc                   # 命令索引（17KB）
-aaf_cmd_code_update.mdc           # 命令：代码更新
-aaf_cmd_doc_inspection.mdc        # 命令：文档巡检
-aaf_cmd_doc_management.mdc        # 命令：文档管理
-aaf_cmd_release_check.mdc         # 命令：发布检查
-aaf_cmd_rules_optimization.mdc    # 命令：规则优化
-aaf_cmd_sample_upgrade.mdc        # 命令：示例项目升级
-aaf_cmd_version_upgrade.mdc       # 命令：版本升级
-aaf_common.mdc                     # 通用规范
-aaf_demo.mdc                       # Demo 说明（临时开发用）
-aaf_dependency.mdc                 # 依赖管理
-aaf_git.mdc                        # Git 规范
-aaf_note.mdc                       # 注释规范
-aaf_version.mdc                    # 版本查找
-```
+### 步骤 2：检查规则文件
 
 **命名规范**：
-- `aaf_commands.mdc` - 主索引文件
-- `aaf_cmd_*.mdc` - 命令规则文件（可执行的命令）
-- `aaf_*.mdc` - 配置/规范文件（非命令）
+- `aaf_commands.mdc` — 主索引（唯一）
+- `aaf_cmd_*.mdc` — 命令规则（可执行）
+- `aaf_*.mdc`（非 cmd）— 配置/规范文件
 
-**项目区分**：
-- **aaf_demo.mdc** - 临时开发用的 Demo 项目说明
-- **aaf_cmd_sample_upgrade.mdc** - 外部示例项目（Template_Android/Template-AAF/Template-Empty）升级命令
+**内容检查**：
+- YAML frontmatter 完整性（description、alwaysApply、enabled、updatedAt）
+- 文件大小是否合理（> 300 行需考虑精简）
+- 是否有跨文件的重复内容
+- 是否包含应该由 Agent 处理的具体实现细节
 
-**建议**: ✅ **保持扁平结构，暂不分层**
+### 步骤 3：检查 Agent 文件
 
-**理由**:
-- 数量适中（14 个）
-- 统一前缀清晰
-- 一目了然，易于查找
+**职责边界检查**：
+- Agent 是否只做一件事（单一职责）
+- Agent 之间是否有功能重叠
+- Agent 与 Rule 之间是否有内容重复（Rule 不应包含 Agent 内部的实现细节）
 
----
+**格式检查**：
+- frontmatter 完整（name、description、model、tools、agentMode）
+- 输入/输出格式是否清晰定义
+- 注意事项是否明确
 
-### 分层触发条件
+### 步骤 4：检查 Skill 文件
 
-当满足以下任一条件时，考虑重构为分层结构：
+**结构检查**：
+- `SKILL.md` 是否完整定义了触发条件和执行流程
+- 资源文件（scripts/、references/）是否仍被需要，还是已被 Agent 替代
+- Skill 与 Agent 的职责划分是否清晰（Skill = 调度编排，Agent = 具体执行）
 
-1. **数量临界点**
-   - 规则文件 > 15-20 个
+### 步骤 5：执行优化
 
-2. **领域扩展**
-   - 出现多个不同领域的规则（如前端、后端、测试等）
-   - 出现多个子项目的规则
+1. **精简内容** — 移除冗余说明、合并重复、简化过长示例
+2. **统一格式** — 标题层级、代码块、列表格式
+3. **更新时间戳** — 统一 `updatedAt` 为优化执行时间
+4. **清理冗余资源** — 删除已被 Agent 替代的脚本/参考文件
+5. **修正职责边界** — Rule 中的具体实现移到 Agent，Skill 中的具体改法移到 Agent
 
-3. **管理困难**
-   - 规则文件开始难以查找
-   - 规则文件命名开始混乱
-   - 规则文件关联关系复杂
-
----
-
-### 推荐的分层结构
-
-```
-.codebuddy/rules/
-├── README.md                          # 规则索引文档
-├── aaf_commands.mdc                   # 主索引（保留在根目录）
-│
-├── core/                              # 核心规则
-│   ├── aaf_common.mdc                # 通用规范
-│   ├── aaf_note.mdc                  # 备忘录
-│   └── aaf_cmd_rules_optimization.mdc # 命令：规则优化
-│
-├── docs/                              # 文档相关
-│   ├── aaf_cmd_doc_management.mdc    # 命令：文档管理
-│   └── aaf_cmd_doc_inspection.mdc    # 命令：文档巡检
-│
-├── development/                       # 开发工具
-│   ├── aaf_git.mdc                   # Git 规范
-│   ├── aaf_dependency.mdc            # 依赖管理
-│   ├── aaf_cmd_release_check.mdc     # 命令：发布检查
-│   └── aaf_cmd_sample_upgrade.mdc    # 命令：示例项目升级
-│
-└── demo/                              # Demo 相关（临时开发）
-    └── aaf_demo.mdc                  # Demo 说明
-```
-
----
-
-### 分层原则
-
-#### 1. core/ - 核心规范和通用功能
-- 框架的核心规范
-- 通用工具和功能
-- 规则管理相关
-
-#### 2. docs/ - 文档管理相关
-- 文档生成和同步
-- 文档巡检
-- 文档规范
-
-#### 3. development/ - 开发工具和流程
-- Git 工作流
-- 依赖管理
-- 发布流程
-- 开发辅助工具
-
-#### 4. demo/ - Demo 项目相关
-- Demo 项目说明
-- Demo 项目升级
-- Demo 项目配置
-
-#### 5. 主索引保留根目录
-- `aaf_commands.mdc` 始终保留在根目录
-- 作为所有规则的统一入口
-- 便于快速访问
-
----
-
-### 分层迁移步骤
-
-当决定分层时，按以下步骤执行：
-
-#### 步骤 1: 创建目录结构
-```bash
-cd .codebuddy/rules/
-mkdir -p core docs development demo
-```
-
-#### 步骤 2: 移动规则文件
-```bash
-# 核心规则
-mv aaf_common.mdc core/
-mv aaf_note.mdc core/
-mv aaf_cmd_rules_optimization.mdc core/
-
-# 文档相关
-mv aaf_cmd_doc_management.mdc docs/
-mv aaf_cmd_doc_inspection.mdc docs/
-
-# 开发工具
-mv aaf_git.mdc development/
-mv aaf_dependency.mdc development/
-mv aaf_cmd_release_check.mdc development/
-mv aaf_cmd_sample_upgrade.mdc development/
-
-# Demo 相关（临时开发）
-mv aaf_demo.mdc demo/
-
-# 主索引保留
-# aaf_commands.mdc 保持在根目录
-```
-
-#### 步骤 3: 更新规则引用
-- 检查 `aaf_commands.mdc` 中的规则路径引用
-- 更新为新的相对路径（如 `development/aaf_git.mdc`）
-
-#### 步骤 4: 更新 README.md
-- 更新规则文件索引
-- 添加目录结构说明
-
-#### 步骤 5: 验证和测试
-- 确认所有规则文件可正常访问
-- 确认命令索引正常工作
-
----
-
-## 📋 优化检查清单
-
-执行规则优化时，确认以下检查项：
-
-- [ ] 扫描所有规则文件
-- [ ] 检查格式一致性
-- [ ] 检查内容质量
-- [ ] 统一时间戳
-- [ ] 精简冗余内容
-- [ ] 优化文档结构
-- [ ] **检查任务展示需求**（见下方详细说明）
-- [ ] 更新 README.md
-- [ ] 评估目录结构
-- [ ] 提供优化建议
-- [ ] 确认所有变更无误
-
----
-
-## 📋 任务展示检查规则
-
-### 适用场景
-
-以下类型的规则**应该**使用 `todo_write` 展示任务进度：
-- 批量检查类（如检查多个文件）
-- 多步骤生成类（如生成多个文件）
-- 复杂流程类（如 3+ 步骤的操作）
-- 执行时间较长（如编译、网络请求等）
-
-以下类型的规则**不需要**任务展示：
-- 单步操作（如查看状态）
-- 简单查询（如读取文件）
-- 纯配置/规范类文件（非 `aaf_cmd_*`）
-
-### 判断标准
-
-| 条件 | 需要任务展示 |
-|------|-------------|
-| 步骤数 ≥ 3 | ✅ 是 |
-| 涉及多个文件 | ✅ 是 |
-| 执行时间 > 30秒 | ✅ 是 |
-| 需要用户等待 | ✅ 是 |
-| 单步操作 | ❌ 否 |
-
-### 检查流程
+### 步骤 6：生成优化报告
 
 ```
-1. 筛选所有 aaf_cmd_*.mdc 文件
-2. 检查每个命令规则的执行步骤数
-3. 判断是否已有任务展示说明
-4. 如果步骤 ≥ 3 且无任务展示，标记为需要添加
-5. 生成任务展示模板并添加到规则中
+规则优化报告
+
+当前状态：
+  - Rules: X 个, Agents: Y 个, Skills: Z 个
+  - 最大文件：xxx.mdc (N 行)
+
+发现的问题：
+  - [问题描述]
+
+已执行的优化：
+  - [优化描述]
+
+建议提交：
+  git commit -m "refactor(rules): 优化规则文件格式和内容"
 ```
 
-### 任务展示模板
+## 优化原则
 
-对于需要添加任务展示的规则，在"执行流程"章节开头添加：
+1. **简洁** — 去除冗余，保留核心信息，避免过度详细的示例
+2. **单一职责** — Rule 管调度和规范，Agent 管具体执行，Skill 管编排
+3. **不重复** — 同一信息只在一处维护，其他地方引用
+4. **命名清晰** — 看名字就知道类型和用途
 
-```markdown
-### 📋 任务进度展示
+## 目录结构策略
 
-**执行时，必须使用 todo_write 工具创建任务列表展示进度：**
+**当前**：扁平结构（rules 14 个 + agents 3 个 + skills 3 个），保持不变。
 
-\`\`\`json
-[
-  {"id": "1", "status": "in_progress", "content": "步骤1描述"},
-  {"id": "2", "status": "pending", "content": "步骤2描述"},
-  {"id": "3", "status": "pending", "content": "步骤3描述"}
-]
-\`\`\`
-
-**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
-```
-
-### 已添加任务展示的规则
-
-| 规则文件 | 任务数 | 状态 |
-|---------|--------|------|
-| `aaf_cmd_rules_optimization.mdc` | 6 | ✅ 已添加 |
-| `aaf_cmd_version_upgrade.mdc` | 6 | ✅ 已添加 |
-| `aaf_cmd_release_check.mdc` | 6 | ✅ 已添加 |
-| `aaf_cmd_doc_management.mdc` | 5 | ✅ 已添加 |
-| `aaf_cmd_doc_inspection.mdc` | 5 | ✅ 已添加 |
-| `aaf_cmd_code_update.mdc` | 4 | ✅ 已添加 |
-| `aaf_cmd_sample_upgrade.mdc` | - | ℹ️ 由 skill 处理 |
-| `aaf_commands.mdc` | - | ℹ️ 索引文件，无需 |
-| `aaf_common.mdc` | - | ℹ️ 规范文件，无需 |
-| `aaf_git.mdc` | - | ℹ️ 规范文件，无需 |
-| `aaf_dependency.mdc` | - | ℹ️ 规范文件，无需 |
-| `aaf_demo.mdc` | - | ℹ️ 说明文件，无需 |
-| `aaf_note.mdc` | - | ℹ️ 注释规范，无需 |
-| `aaf_version.mdc` | - | ℹ️ 版本查找，无需 |
-
-### 检查输出格式
-
-```
-📋 任务展示检查结果：
-
-✅ 已有任务展示：
-   - aaf_cmd_rules_optimization.mdc (6 个任务)
-   - aaf_cmd_version_upgrade.mdc (6 个任务)
-   - aaf_cmd_release_check.mdc (6 个任务)
-   - aaf_cmd_doc_management.mdc (5 个任务)
-   - aaf_cmd_doc_inspection.mdc (5 个任务)
-   - aaf_cmd_code_update.mdc (4 个任务)
-
-ℹ️ 由 Skill 处理：
-   - aaf_cmd_sample_upgrade.mdc
-
-ℹ️ 无需任务展示：
-   - aaf_commands.mdc (索引文件)
-   - aaf_common.mdc (规范文件)
-   - aaf_git.mdc (规范文件)
-   - aaf_dependency.mdc (规范文件)
-   - aaf_demo.mdc (说明文件)
-   - aaf_note.mdc (注释规范)
-   - aaf_version.mdc (版本查找)
-```
-
----
-
-## 📊 优化输出格式
-
-```
-✅ 规则文件扫描完成
-
-📂 当前状态：
-   - 规则文件数量：14 个
-   - 总行数：3000+ 行
-   - 最大文件：aaf_cmd_doc_management.mdc (18KB)
-   - 目录结构：扁平结构
-
-🔍 发现的问题：
-   - ⚠️ 3 个文件时间戳过期
-   - ⚠️ 2 个文件存在重复内容
-   - ⚠️ 1 个文件格式不统一
-
-✨ 优化建议：
-   1. 统一时间戳到 2025-11-27T12:00:00.000Z
-   2. 精简 aaf_doc_management.mdc 重复示例
-   3. 统一 aaf_git.mdc 格式
-   4. 目录结构：保持扁平结构（11 个文件未达到分层阈值）
-
-📝 建议提交：
-git commit -m "refactor(rules): 优化规则文件格式和内容
-
-- 统一时间戳
-- 精简重复内容
-- 统一格式风格
-"
-```
-
----
-
-## 🔗 相关规则
-
-- `aaf_commands.mdc` - 命令索引
-- `aaf_common.mdc` - AAF 框架通用规范
-- `aaf_doc_management.mdc` - 文档管理规范
+**分层触发条件**（满足任一时考虑）：
+- 规则文件 > 20 个
+- 出现多个不同领域的规则
+- 文件查找变得困难

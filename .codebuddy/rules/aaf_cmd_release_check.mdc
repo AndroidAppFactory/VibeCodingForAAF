@@ -2,7 +2,7 @@
 description: AAF 发布检查规则 - 发布前自动检查编译状态、版本号更新和文档同步
 alwaysApply: false
 enabled: true
-updatedAt: 2025-11-28T08:00:00.000Z
+updatedAt: 2026-02-26T12:00:00.000Z
 provider: 
 ---
 
@@ -10,262 +10,11 @@ provider:
 
 ## 触发条件
 
-当用户提到以下关键词时，自动执行本规则：
-- "准备发布"
-- "发布前"
-- "release"
-- "准备打包"
-- "发版"
-- "上线前"
-
-## 检查项目
-
-### 1. 编译检查
-
-执行 AndroidAppFactory 项目的编译，确保框架可以正常编译通过：
-
-```bash
-cd ../AndroidAppFactory
-./gradlew assembleDebug
-```
-
-**检查要点：**
-- ✅ 编译是否成功（BUILD SUCCESSFUL）
-- ✅ 是否有编译错误
-- ⚠️ 是否有警告信息（记录但不阻止发布）
-- ✅ 所有模块是否正常构建
-
-**说明：**
-- AndroidAppFactory 是框架核心代码库
-- 发布前必须确保框架本身编译通过
-
-### 2. 模块版本号检查（重要）
-
-检查 dependencies.gradle 中的 ext.moduleVersionName 是否有提升。
-
-#### 2.1 检查文件
-
-**dependencies.gradle**（核心版本配置文件）
-- `ext.moduleVersionName`: 模块版本名称（格式：x.y.z，如：7.2.7）
-- 每次发布必须提升版本号
-
-#### 2.2 检查逻辑
-
-```bash
-cd ../AndroidAppFactory
-
-# 获取当前模块版本号
-grep "moduleVersionName" dependencies.gradle
-```
-
-**版本号对比：**
-1. 从最新的 Tag（如：Tag_AAF_7.2.7）获取上次发布版本
-2. 对比当前 ext.moduleVersionName 是否已提升
-3. 如果未提升，提醒用户更新版本号
-
-**版本号规则：**
-- 格式：`主版本号.次版本号.修订号`（如：7.2.7）
-- 主版本号：重大功能更新或不兼容变更
-- 次版本号：新功能添加，向下兼容
-- 修订号：Bug 修复或小改动
-- **每次发布必须递增**
-
-### 3. 文档同步检查
-
-检查修改的模块是否有对应的文档更新，确保代码和文档保持同步。
-
-#### 3.1 检查方法
-
-```bash
-# 获取从上次发布到现在的变更模块
-cd ../AndroidAppFactory
-LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-CHANGED_MODULES=$(git diff --name-only $LATEST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base")
-
-# 检查对应的文档是否有更新
-cd ../AndroidAppFactory-Doc
-for module in $CHANGED_MODULES; do
-    # 查找对应的文档文件
-    DOC_FILE=$(find . -name "*.md" -path "*${module:3}*" | head -1)
-    if [ -n "$DOC_FILE" ]; then
-        # 检查文档是否在变更范围内
-        DOC_UPDATED=$(git diff --name-only $LATEST_TAG HEAD | grep "$DOC_FILE")
-        if [ -z "$DOC_UPDATED" ]; then
-            echo "⚠️  $module 有代码变更，但文档未更新: $DOC_FILE"
-        fi
-    else
-        echo "⚠️  $module 有代码变更，但找不到对应文档"
-    fi
-done
-```
-
-#### 3.2 检查要点
-
-- ✅ 代码变更的模块是否有对应的文档更新
-- ⚠️ 有代码变更但文档未更新的模块
-- ❌ 有代码变更但找不到对应文档的模块
-
-#### 3.3 处理策略
-
-- **文档未更新**：提醒用户运行"更新文档"命令
-- **找不到文档**：提醒用户运行"生成文档"命令
-- **无代码变更**：跳过文档检查
-
-### 4. 修改模块完整性检查（重要）
-
-检查从上次 Tag 到现在，所有修改过的模块是否都包含在 ext.developModule 中。
-
-**重要说明：**
-- ❌ 以 `APP` 开头的模块不需要包含在发布列表（如：APPTest、APPDemo）
-- ❌ 以 `Base` 开头的模块不需要包含在发布列表（如：BaseDebug、BaseTest）
-- ✅ 只检查其他需要发布的业务模块
-
-**检查命令：**
-```bash
-cd ../AndroidAppFactory
-LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-git diff --name-only $LATEST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base"
-```
-
-**处理方式：**
-- 提示用户哪些模块有修改但未包含
-- 询问用户是否需要添加到 developModule
-- 自动排除 APP 和 Base 开头的模块
-
-### 5. 依赖配置变更检查（重要）
-
-当 `dependencies_aaf_config.gradle` 中的第三方依赖版本发生变更时，需要检查并发布所有依赖该配置的模块。
-
-#### 5.1 检查逻辑
-
-**Step 1: 检测配置文件变更**
-```bash
-cd ../AndroidAppFactory
-LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-git diff $LATEST_TAG HEAD -- dependencies_aaf_config.gradle
-```
-
-**Step 2: 识别变更的依赖项**
-
-从 diff 中提取变更的依赖 key（如 `worker`、`lifecycle` 等）。
-
-**Step 3: 查找依赖该配置的模块**
-
-在 `dependencies_lib.gradle`、`dependencies_lock_*.gradle` 等文件中搜索：
-```bash
-# 搜索直接引用该依赖的模块
-grep -r "project.androidsupport.<依赖key>" --include="*.gradle" .
-```
-
-**Step 4: 递归查找依赖链**
-
-找到直接依赖的模块后，继续查找依赖这些模块的上层模块：
-```bash
-# 在 apidependenciesList 中搜索模块名
-grep -r "<模块名>" --include="*.gradle" . | grep "apidependenciesList"
-```
-
-#### 5.2 依赖配置映射表
-
-| 配置 Key | 对应依赖 | 直接依赖模块 |
-|---------|---------|------------|
-| `worker` | `androidx.work:work-runtime` | LibWorker |
-| `lifecycle` | `androidx.lifecycle:lifecycle-runtime-ktx` | LibLifecycle |
-| `room_*` | `androidx.room:room-*` | LibRoom |
-| `retrofit` | `com.squareup.retrofit2:retrofit` | LibNetwork |
-
-#### 5.3 示例：WorkManager 版本升级
-
-**变更内容：**
-```diff
-- worker : "androidx.work:work-runtime:2.7.1",
-+ worker : "androidx.work:work-runtime:2.9.0",
-```
-
-**依赖链分析：**
-```
-dependencies_aaf_config.gradle
-  └── worker = "androidx.work:work-runtime:2.9.0"
-
-LibWorker (dependencies_lib.gradle)
-  └── 依赖 project.androidsupport.worker
-  
-LibWrapper (dependencies_lib.gradle)
-  └── 依赖 LibWorker
-
-LibWidget (dependencies_lock_widget.gradle)
-  └── 依赖 LibWorker
-```
-
-**需要发布的模块：**
-- LibWorker（直接依赖）
-- LibWrapper（间接依赖）
-- LibWidget（间接依赖）
-
-#### 5.4 检查要点
-
-- ✅ 检测 `dependencies_aaf_config.gradle` 是否有变更
-- ✅ 识别变更的第三方依赖版本
-- ✅ 查找直接依赖该配置的模块
-- ✅ 递归查找间接依赖的模块
-- ⚠️ 提醒用户将所有受影响模块加入 `ext.developModule`
-
-#### 5.5 处理策略
-
-1. **自动检测**：发布检查时自动分析配置文件变更
-2. **依赖追踪**：递归查找所有受影响的模块
-3. **提醒用户**：列出所有需要发布的模块
-4. **验证完整性**：确保所有受影响模块都在发布列表中
-
-### 6. 版本 Tag 检查
-
-检查是否存在对应版本的 Git Tag。
-
-**Tag 命名规则：** `Tag_AAF_x.y.z`（如：Tag_AAF_7.2.7）
-
-**检查命令：**
-```bash
-MODULE_VERSION=$(grep "moduleVersionName" dependencies.gradle | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
-git tag -l "Tag_AAF_$MODULE_VERSION"
-```
-
-**结果：**
-- Tag 不存在 → 正常，待发布后创建
-- Tag 已存在 → ⚠️ 警告，版本号可能未更新
-
-### 7. 代码质量检查（可选）
-
-```bash
-cd ../AndroidAppFactory
-git status
-git branch --show-current
-```
-
-**检查要点：**
-- 是否有未提交的代码修改
-- 当前分支是否正确
+关键词："准备发布"、"发布前"、"release"、"发版"
 
 ## 检查流程
 
-### 📋 任务进度展示
-
-**执行发布检查时，必须使用 todo_write 工具创建任务列表展示进度：**
-
-```json
-[
-  {"id": "1", "status": "in_progress", "content": "模块版本号检查"},
-  {"id": "2", "status": "pending", "content": "文档同步检查"},
-  {"id": "3", "status": "pending", "content": "修改模块完整性检查"},
-  {"id": "4", "status": "pending", "content": "依赖配置变更检查"},
-  {"id": "5", "status": "pending", "content": "编译检查"},
-  {"id": "6", "status": "pending", "content": "Git 状态检查"},
-  {"id": "7", "status": "pending", "content": "生成检查报告"}
-]
-```
-
-**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
-
----
+按以下顺序执行，使用 todo_write 展示进度：
 
 ### Step 1: 模块版本号检查
 
@@ -276,67 +25,48 @@ LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
 LATEST_VERSION=$(echo $LATEST_TAG | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
 ```
 
-**对比规则：** 当前版本必须大于上次版本
+当前版本必须大于上次版本。版本格式：`主版本号.次版本号.修订号`
 
 ### Step 2: 文档同步检查
 
 ```bash
-# 获取从上次发布到现在的变更模块
 cd ../AndroidAppFactory
 LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
 CHANGED_MODULES=$(git diff --name-only $LATEST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base")
 
-# 检查对应的文档是否有更新
 cd ../AndroidAppFactory-Doc
 for module in $CHANGED_MODULES; do
-    # 查找对应的文档文件
     DOC_FILE=$(find . -name "*.md" -path "*${module:3}*" | head -1)
-    if [ -n "$DOC_FILE" ]; then
-        # 检查文档是否在变更范围内
-        DOC_UPDATED=$(git diff --name-only $LATEST_TAG HEAD | grep "$DOC_FILE")
-        if [ -z "$DOC_UPDATED" ]; then
-            echo "⚠️  $module 有代码变更，但文档未更新: $DOC_FILE"
-        fi
-    else
-        echo "⚠️  $module 有代码变更，但找不到对应文档"
-    fi
+    # 检查文档是否有更新
 done
 ```
 
-**期望结果：** 所有代码变更的模块都有对应的文档更新
+- 文档未更新：提醒运行"更新文档"
+- 找不到文档：提醒运行"生成文档"
 
 ### Step 3: 修改模块完整性检查
 
+检查所有修改过的模块是否包含在 `ext.developModule` 中：
+
 ```bash
+cd ../AndroidAppFactory
 LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
 CHANGED_MODULES=$(git diff --name-only $LATEST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base")
 DEVELOP_MODULES=$(grep "developModule" dependencies.gradle | grep -o "'[^']*'" | tr -d "'" | tr ',' '\n')
 ```
 
-**检查：** 确保所有 CHANGED_MODULES 都在 DEVELOP_MODULES 中
+排除规则：`APP*` 和 `Base*` 开头的模块不需要包含在发布列表中。
 
 ### Step 4: 依赖配置变更检查
 
-```bash
-cd ../AndroidAppFactory
-LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
+当 `dependencies_aaf_config.gradle` 有变更时，需检查所有依赖该配置的模块：
 
-# 检查 dependencies_aaf_config.gradle 是否有变更
-CONFIG_CHANGED=$(git diff --name-only $LATEST_TAG HEAD | grep "dependencies_aaf_config.gradle")
+1. 检测配置文件变更：`git diff $LATEST_TAG HEAD -- dependencies_aaf_config.gradle`
+2. 识别变更的依赖 key
+3. 查找直接引用模块：`grep -r "project.androidsupport.<key>" --include="*.gradle" .`
+4. 递归查找间接依赖模块
 
-if [ -n "$CONFIG_CHANGED" ]; then
-    # 获取变更的依赖 key
-    CHANGED_DEPS=$(git diff $LATEST_TAG HEAD -- dependencies_aaf_config.gradle | grep "^[+-]" | grep -v "^[+-][+-]" | grep -oE "[a-z_]+\s*:" | tr -d ' :' | sort -u)
-    
-    for dep in $CHANGED_DEPS; do
-        echo "检查依赖: $dep"
-        # 查找直接引用该依赖的模块
-        grep -r "project.androidsupport.$dep" --include="*.gradle" . | grep -oE '"[A-Z][a-zA-Z]+"' | tr -d '"' | sort -u
-    done
-fi
-```
-
-**期望结果：** 所有依赖变更配置的模块都在发布列表中
+确保所有受影响模块都在 `ext.developModule` 中。
 
 ### Step 5: 编译检查
 
@@ -345,7 +75,7 @@ cd ../AndroidAppFactory
 ./gradlew clean assembleDebug
 ```
 
-**期望结果：** `BUILD SUCCESSFUL`
+期望：`BUILD SUCCESSFUL`
 
 ### Step 6: Git 状态检查
 
@@ -354,131 +84,50 @@ git status --short
 git branch --show-current
 ```
 
-### Step 7: 生成检查报告并显示发布命令
+### Step 7: 生成报告并显示发布命令
 
 ```bash
 ./gradlew showPublishCommand
 ```
 
-**报告示例：**
+## 版本 Tag 检查
 
+Tag 命名规则：`Tag_AAF_x.y.z`
+
+```bash
+MODULE_VERSION=$(grep "moduleVersionName" dependencies.gradle | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
+git tag -l "Tag_AAF_$MODULE_VERSION"
 ```
-================================
-AAF 发布前检查报告
-================================
 
-📦 项目：AndroidAppFactory
-📅 检查时间：2025-11-24 10:00:00
-
-✅ 模块版本号检查
-   当前版本：7.2.7
-   上次版本：7.2.6 (Tag_AAF_7.2.6)
-   状态：已提升 ✓
-
-✅ 文档同步检查
-   代码变更模块：CommonMedia, LibImage, LibUtils
-   文档已同步模块：CommonMedia, LibImage
-   文档未同步模块：LibUtils
-   状态：部分模块需要更新文档 ⚠️
-
-✅ 依赖配置变更检查
-   变更的依赖：worker (WorkManager 2.7.1 → 2.9.0)
-   受影响模块：LibWorker, LibWrapper, LibWidget
-   状态：已识别所有受影响模块 ✓
-
-✅ 修改模块完整性检查
-   修改的模块：CommonMedia, LibImage, LibUtils
-   已排除模块：APPTest (APP), BaseDebug (Base)
-   developModule：CommonMedia, LibImage, LibUtils, LibNetwork
-   状态：所有需要发布的模块都已包含 ✓
-
-✅ 编译检查
-   状态：通过
-   耗时：25s
-   所有模块编译成功
-
-⚠️  Git 状态检查
-   当前分支：main
-   未提交修改：3 个文件
-   建议：发布前先提交代码
-
-================================
-检查结果：需要先更新文档 ✓
-================================
-```
+- Tag 不存在 → 正常，待发布后创建
+- Tag 已存在 → 版本号可能未更新
 
 ## 检查清单
 
-在执行自动检查后，向用户展示以下清单，让用户手动确认：
-
 - [ ] ext.moduleVersionName 已提升
 - [ ] 依赖配置变更的受影响模块已加入发布列表
-- [ ] 所有修改的模块都包含在 ext.developModule 中
-- [ ] AndroidAppFactory 编译通过，无错误
-- [ ] 代码已提交到 Git
-- [ ] 在正确的分支上
-- [ ] 功能已测试验证
-- [ ] 重要修改已添加注释
-- [ ] 文档已更新（AndroidAppFactory-Doc）
-- [ ] CHANGELOG 已更新（如有重大变更）
-- [ ] 准备创建 Tag（Tag_AAF_x.y.z）
+- [ ] 所有修改模块都在 ext.developModule 中
+- [ ] AndroidAppFactory 编译通过
+- [ ] 代码已提交
+- [ ] 在正确分支上
+- [ ] 功能已测试
+- [ ] 文档已更新
+- [ ] 准备创建 Tag
 
 ## 常见问题处理
 
-### 问题1：编译失败
-- 显示详细的编译错误信息
-- 建议执行 `./gradlew clean` 后重试
-- 不继续执行后续检查
+### 编译失败
+显示详细错误，建议 `./gradlew clean` 后重试，不继续后续检查。
 
-### 问题2：模块版本号未提升
-```
-❌ 版本号未提升
-当前版本：7.2.6 (dependencies.gradle)
-上次版本：7.2.6 (Tag_AAF_7.2.6)
+### 版本号未提升
+提示当前版本和上次版本，建议版本号：Bug 修复 +0.0.1，新功能 +0.1.0，重大更新 +1.0.0
 
-建议版本号：
-- Bug 修复：7.2.7
-- 新功能：7.3.0
-- 重大更新：8.0.0
-```
+### 模块未包含在 developModule
+列出有修改但未包含的模块，询问是否添加。
 
-### 问题3：修改的模块未包含在 developModule 中
-```
-⚠️  以下模块有修改但未包含在 ext.developModule 中：
-- LibNetwork
-- LibUtils
-
-是否需要添加到 ext.developModule？
-```
-
-### 问题4：有未提交的代码
-- 列出未提交的文件
-- 建议用户在发布前提交所有修改
-
-### 问题5：Tag 已存在
-```
-⚠️  Tag 已存在：Tag_AAF_7.2.6
-说明当前版本号 7.2.6 已经发布过
-
-建议：更新 ext.moduleVersionName 到新版本（如：7.2.7）
-```
-
-### 问题6：依赖配置变更但模块未加入发布列表
-```
-⚠️  dependencies_aaf_config.gradle 有变更：
-变更的依赖：worker (WorkManager 2.7.1 → 2.9.0)
-
-以下模块依赖该配置但未包含在 ext.developModule 中：
-- LibWorker（直接依赖 project.androidsupport.worker）
-- LibWrapper（依赖 LibWorker）
-- LibWidget（依赖 LibWorker）
-
-是否需要添加到 ext.developModule？
-```
+### 依赖配置变更但模块未加入发布列表
+显示变更的依赖、直接和间接依赖模块，询问是否添加。
 
 ## 路径说明
 
-**发布检查范围：**
-- 检查项目：AndroidAppFactory（AAF 框架核心代码）
-- 检查内容：编译状态、版本号更新、模块完整性
-- 相对路径：`../AndroidAppFactory`
+检查项目：`../AndroidAppFactory`（AAF 框架核心代码）

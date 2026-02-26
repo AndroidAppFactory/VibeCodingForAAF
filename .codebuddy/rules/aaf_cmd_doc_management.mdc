@@ -2,7 +2,7 @@
 description: AAF 文档管理规则 - 文档生成、同步和更新的统一管理
 alwaysApply: false
 enabled: true
-updatedAt: 2025-11-28T08:00:00.000Z
+updatedAt: 2026-02-26T12:00:00.000Z
 provider: 
 ---
 
@@ -10,92 +10,36 @@ provider:
 
 ## 触发条件
 
-当满足以下任一条件时，自动执行文档管理流程：
-
-### 1. 生成/整理文档
-- "帮我整理一下 [模块名] 的文档"
-- "生成 [模块名] 的文档"
-- "为 [模块名] 创建文档"
-
-### 2. 同步/更新文档
-- "同步文档"
-- "更新文档"
-- "文档同步"
-- "检查文档"
-
-### 3. 自动触发（可选，需用户确认后启用）
-- 修改了 AndroidAppFactory 项目中的模块代码
-- 完成一个功能开发任务
-- 添加或修改了公共 API
+- "帮我整理一下 [模块名] 的文档" / "生成 [模块名] 的文档" → 完整生成模式
+- "同步文档" / "更新文档" / "文档同步" → 增量更新模式
+- 修改 AndroidAppFactory 模块代码后（可选，需用户确认）
 
 ## 执行模式
 
-根据具体场景，自动选择合适的执行模式：
-
 ### 模式 1：完整生成模式
 
-**适用场景：**
-- 为新模块创建文档
-- 重新整理现有模块的文档
-- 文档不存在或需要全面更新
+适用：新模块创建文档、重新整理文档、文档不存在
 
-**执行流程：**
-1. 分析目标模块源码结构
-2. 识别主要功能和适用场景
-3. 提取公共 API（类、接口、方法）
-4. 按照标准模板生成完整文档
-5. 更新 SUMMARY.md 索引
+流程：分析模块源码 → 识别功能和 API → 按模板生成文档 → 更新 SUMMARY.md 索引
 
 ### 模式 2：增量更新模式
 
-**适用场景：**
-- 代码变更后更新文档
-- 发布前文档检查
-- 定期文档同步
+适用：代码变更后更新文档、发布前检查、定期同步
 
-**执行流程：**
-1. 检测模块代码变更（基于 git diff）
-2. 分析具体变更内容（功能变化、API 变化）
-3. 查找对应的文档文件
-4. 生成更新建议或直接更新文档
-5. 用户确认后执行更新
+流程：检测变更（git diff）→ 分析变更内容 → 查找对应文档 → 生成更新建议 → 用户确认后更新
 
-### 模式 3：智能判断模式（推荐）
+### 模式 3：智能判断（推荐）
 
-**自动判断逻辑：**
-```
-文档是否存在？
-    ↓              ↓
-  不存在         存在
-    ↓              ↓
-完整生成      是否有代码变更？
-                ↓         ↓
-              有变更    无变更
-                ↓         ↓
-            增量更新   完整重新生成
-```
+文档不存在 → 完整生成；存在且有代码变更 → 增量更新；存在且无变更 → 完整重新生成
 
 ## 文档标准格式
 
-### 核心原则
+### 核心规则：一个模块一个文档
 
-**🔴 一个模块一个文档（强制规则）**
+- 每个 AAF 模块必须有独立文档文件，禁止合并
+- 文档名称使用 maven artifact id：`LibAudio` → `lib-audio.md`
 
-- **必须遵守**：每个 AAF 模块必须有独立的文档文件
-  - 例如：LibAudio、LibAudioPlayer、LibAudioRecord 是三个独立模块，必须各自对应三个独立文档
-- **禁止合并**：不允许将多个模块的文档合并到一个文件中
-- **命名规则**：文档名称必须与模块的 maven artifact id 完全对应
-  - LibAudio → `lib-audio.md`
-  - LibAudioPlayer → `lib-audio-player.md`
-  - LibAudioRecord → `lib-audio-record.md`
-- **检查方式**：
-  1. 查看 AndroidAppFactory 项目中的模块目录（每个文件夹是一个模块）
-  2. 查看 dependencies_*.gradle 文件中定义的模块列表
-  3. 确保每个模块都有对应的文档文件
-
-### 基础模板结构
-
-基于 `lib-aaf-tools.md` 的标准格式：
+### 基础模板
 
 ```markdown
 # [模块名]
@@ -105,457 +49,107 @@ provider:
 [ ![Maven Central](https://img.shields.io/maven-central/v/com.bihe0832.android/[maven-artifact]) ](https://search.maven.org/artifact/com.bihe0832.android/[maven-artifact])
 
 ## 功能简介
+[简洁描述主要功能和适用场景]
 
-[简洁描述模块主要功能和适用场景]
-
-**核心特性：**
-- 特性1
-- 特性2
- 
 ## 组件信息
 
 #### 引用仓库
-
 引用仓库可以参考 [组件使用](./../start.md) 中添加依赖的部分
 
 #### 组件使用
-
 \```groovy
 implementation 'com.bihe0832.android:[maven-artifact]:+'
 \```
 
 ## 组件功能
-
-### [主要功能类1]
-
-- 功能说明
-- 主要方法说明
-- 基本使用示例
-
-### [主要功能类2]
-
-- 功能说明
-- 主要方法说明
-- 基本使用示例
-
-**使用示例：**
-
-\```kotlin
-// 简单的代码示例，展示最常用的用法
-\```
+### [主要功能类]
+- 功能说明、主要方法、使用示例
 ```
 
 ### 文档编写原则
 
-**文档定位：功能介绍 + 接口手册**
+定位：**功能介绍 + 接口手册**
 
-1. **简洁为主**：内容精炼，避免冗长说明
-2. **突出重点**：先介绍模块功能，再说明如何使用
-3. **统一格式**：严格按照模板格式编写
-4. **实用导向**：说明能做什么、怎么调用，而非实现原理
-5. **最新为准**：使用最新的 API 和推荐用法
-
-**文档内容结构：**
-
-1. **功能介绍部分**
-   - ✅ 模块主要功能说明
-   - ✅ 适用场景
-   - ✅ 核心特性
-   
-2. **接口手册部分**
-   - ✅ 公共类、接口、方法的使用说明
-   - ✅ 参数说明和返回值说明
-   - ✅ 基本使用示例
-   - ✅ 常见用法和场景
-
-**不包含内容：**
-- ❌ 性能优化细节和实现原理
-- ❌ 内部实现逻辑
-- ❌ 版本演进历史
-- ❌ 详细的异常处理（仅说明主要异常）
+包含：模块功能说明、适用场景、公共 API 使用说明、参数和返回值、使用示例
+不包含：性能优化细节、内部实现逻辑、版本演进历史
 
 ## 完整生成流程
-
-### 📋 任务进度展示
-
-**执行文档生成/更新时，必须使用 todo_write 工具创建任务列表展示进度：**
-
-**完整生成模式：**
-```json
-[
-  {"id": "1", "status": "in_progress", "content": "分析目标模块源码"},
-  {"id": "2", "status": "pending", "content": "识别主要功能和 API"},
-  {"id": "3", "status": "pending", "content": "生成文档内容"},
-  {"id": "4", "status": "pending", "content": "确定文档路径"},
-  {"id": "5", "status": "pending", "content": "更新 SUMMARY.md 索引"}
-]
-```
-
-**增量更新模式：**
-```json
-[
-  {"id": "1", "status": "in_progress", "content": "检测模块变更"},
-  {"id": "2", "status": "pending", "content": "分析变更内容"},
-  {"id": "3", "status": "pending", "content": "查找对应文档"},
-  {"id": "4", "status": "pending", "content": "生成更新建议"},
-  {"id": "5", "status": "pending", "content": "执行文档更新"}
-]
-```
-
-**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
-
----
 
 ### 1. 分析目标模块
 
 ```bash
 cd ../AndroidAppFactory
-
-# 定位模块目录
-MODULE_DIR="[模块名]"
-
-# 扫描源码结构
-find $MODULE_DIR/src/main/java $MODULE_DIR/src/main/kotlin -type f
+find [模块名]/src/main/java [模块名]/src/main/kotlin -type f
 ```
 
-**分析重点：**
-- ✅ 模块主要功能（功能介绍部分）
-- ✅ 适用场景和核心特性
-- ✅ 公共 API（接口手册部分）
-- ❌ 性能优化细节
-- ❌ 内部实现逻辑
+重点：模块功能、适用场景、公共 API。不关注内部实现。
 
-### 2. 参考文档模板
+### 2. 生成文档内容
 
-- 使用 LibAAF 文档格式作为模板
-- 保持简洁风格，避免过度详细
-- 遵循"功能介绍 + 接口手册"定位
+参考 LibAAF 文档格式，按标准模板组织。
 
-### 3. 生成文档内容
+### 3. 确定文档路径
 
-按照标准格式组织内容：
-- **功能介绍部分**：说明能做什么、适用场景、核心特性
-- **接口手册部分**：说明怎么使用、API 说明、使用示例
-- **不包含**：性能优化实现、内部逻辑、版本历史
+| 模块类型 | 文档路径 |
+|---------|---------|
+| 基础功能模块 | `use/libs/noui/` |
+| UI 相关模块 | `use/libs/ui/` |
+| 公共组件 | `use/common/` |
+| 三方组件 | `use/services/` |
+| 路由组件 | `use/router/` |
 
-### 4. 确定文档路径
+文件名：直接使用 maven artifact id，如 `lib-aaf-tools.md`
 
-根据模块类型确定文档存放位置：
+### 4. 更新 SUMMARY.md 索引
 
-| 模块类型 | 文档路径 | 示例 |
-|---------|---------|------|
-| 基础功能模块 | `use/libs/noui/` | LibDownload → lib-download.md |
-| UI相关模块 | `use/libs/ui/` | LibImage → lib-image.md |
-| 公共组件 | `use/common/` | CommonWrapper → common-wrapper.md |
-| 三方组件 | `use/services/` | ServicesPush → services-push.md |
-| 路由组件 | `use/router/` | LibRouter → lib-router.md |
+**强制要求**：新建文档必须更新 SUMMARY.md 索引
 
-**文件命名规则：**
-- 直接使用 maven artifact id
-- 例如：`lib-aaf-tools.md`、`common-audio-wave.md`
+操作规则：
+- 必须先向用户提供建议的插入位置，经确认后再执行
+- 禁止未经确认直接修改 SUMMARY.md
+- 排序依据：按 dependencies.gradle 的加载顺序和模块定义顺序
 
-### 5. 更新 SUMMARY.md 索引
-
-**🔴 强制要求：新建文档必须更新 SUMMARY.md 索引**
-
-- **必须执行**：每次新建或修改文档后，必须在 SUMMARY.md 中添加或更新对应索引
-- **索引位置**：根据模块类型确定在 SUMMARY.md 中的位置
-- **确认机制**：必须先向用户提供建议的插入位置，经用户确认后再执行
-- **禁止遗漏**：不允许出现"有文档但无索引"的情况
-
-#### 模块分类和索引位置
-
-根据模块类型，在 SUMMARY.md 中的不同位置添加索引：
-
-1. **基础功能模块** (`lib-*`)
-   - 位置：`* [组件使用]() > * [基础组件信息]() > * [基础功能]()`
-   - 格式：`* [模块名](use/libs/noui/模块名.md)`
-
-2. **UI相关模块** (`lib-*` 但包含UI组件)
-   - 位置：`* [组件使用]() > * [基础组件信息]() > * [UI相关]()`
-   - 格式：`* [模块名](use/libs/ui/模块名.md)`
-
-3. **公共组件** (`common-*`)
-   - 位置：`* [组件使用]() > * [公共组件信息]() > * [公共组件]()`
-   - 格式：`* [模块名](use/common/模块名.md)`
-
-4. **三方组件** (`services-*`)
-   - 位置：`* [组件使用]() > * [三方组件信息]() > * [三方组件]()`
-   - 格式：`* [模块名](use/services/模块名.md)`
-
-5. **路由组件** (`lib-router*`)
-   - 位置：`* [组件使用]() > * [路由组件信息]()`
-   - 格式：`* [模块名](use/router/模块名.md)`
-
-#### 索引插入规则
-
-**排序依据：dependencies 文件的加载顺序和模块定义顺序**
-
-1. **文件级排序**：按 dependencies.gradle 的加载顺序
-   ```
-   dependencies_lib.gradle (基础lib模块)
-   dependencies_common.gradle (公共组件)
-   dependencies_lock_widget.gradle (锁屏组件)
-   dependencies_tbs.gradle (TBS相关)
-   dependencies_services.gradle (三方服务)
-   dependencies_asr.gradle (语音识别相关)
-   dependencies_deprecated.gradle (计划废弃组件)
-   ```
-
-2. **模块级排序**：在同一个 dependencies 文件内，按模块定义的先后顺序
-
-3. **实际操作**：
-   - 在对应分类下（基础功能、UI相关等）
-   - 按照上述排序规则插入
-   - 保持现有格式和缩进
-   - 确保路径正确对应文档位置
-
-4. **确认机制**：
-   - **必须先向用户提供建议的插入位置，经用户确认后再执行插入操作**
-   - **禁止未经用户确认直接修改 SUMMARY.md 文件**
-
-**示例**：
-- lib-tts（来自 dependencies_lib.gradle）应该在前面
-- lib-audio、lib-audio-player、lib-audio-record（来自 dependencies_asr.gradle）应该在后面
-- 即使它们功能相关，也要遵循 dependencies 文件的加载顺序
-4. dependencies_tbs.gradle (TBS相关)
-5. dependencies_services.gradle (三方服务)
-6. dependencies_asr.gradle (语音识别相关)
-7. dependencies_deprecated.gradle (计划废弃组件)
+dependencies 文件加载顺序：
+1. `dependencies_lib.gradle`
+2. `dependencies_common.gradle`
+3. `dependencies_lock_widget.gradle`
+4. `dependencies_tbs.gradle`
+5. `dependencies_services.gradle`
+6. `dependencies_asr.gradle`
+7. `dependencies_deprecated.gradle`
 
 ## 增量更新流程
 
 ### 1. 检测模块变更
 
-检查从最近一次文档更新或 Git Tag 到现在，哪些模块有代码修改：
-
 ```bash
 cd ../AndroidAppFactory
-
-# 方式1：基于最新的文档更新 Tag
-LAST_DOC_TAG=$(git tag -l "Doc_*" | sort -V | tail -1)
-
-# 方式2：基于最新的 AAF 发布 Tag
-LAST_AAF_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-
-# 获取变更的模块（排除 APP 和 Base 开头的模块）
+LAST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
 CHANGED_MODULES=$(git diff --name-only $LAST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base" | grep -v "^\." | grep -v "^gradle" | grep -v "^build")
-
-echo "检测到以下模块有代码变更："
-echo "$CHANGED_MODULES"
 ```
-
-**检查要点：**
-- ✅ 识别所有有变更的模块
-- ✅ 排除测试模块（APP*、Base*）
-- ✅ 排除配置文件和构建脚本
-- ✅ 关注对外API的变更
 
 ### 2. 分析变更内容
 
-对每个变更的模块，分析**与接口使用相关的**变更内容：
-
-```bash
-# 针对每个模块
-for module in $CHANGED_MODULES; do
-    echo "=== $module 变更分析 ==="
-    
-    # 显示变更的文件
-    git diff --name-only $LAST_TAG HEAD -- $module/src/main/
-    
-    # 重点检查公共 API 变更
-    git diff $LAST_TAG HEAD -- $module/src/main/java/ $module/src/main/kotlin/ | \
-    grep -E "(class|interface|fun|val|var)" | grep "public"
-done
-```
-
-**关注重点（功能介绍 + 接口手册视角）：**
-- ✅ 新增的主要功能（更新功能介绍部分）
-- ✅ 新增的公共类、接口、方法（更新接口手册部分）
-- ✅ 修改的方法签名（参数、返回值）
-- ✅ API 废弃标记（@Deprecated）
-- ✅ 使用方式变更
-- ❌ 性能优化实现细节（不体现在文档）
-- ❌ 内部实现逻辑（不体现在文档）
-- ❌ 注释变更（不体现在文档）
+关注：新增功能、新增公共 API、修改的方法签名、API 废弃标记、使用方式变更
+不关注：性能优化细节、内部逻辑、注释变更
 
 ### 3. 检查对应文档
 
-查找每个变更模块在 AndroidAppFactory-Doc 中的对应文档：
+在 AndroidAppFactory-Doc 的 `use/` 目录下查找对应模块文档。
 
-```bash
-cd ../AndroidAppFactory-Doc
+### 4. 生成更新建议
 
-# 根据模块名查找对应文档
-# 规则：模块名转换为小写，替换为 maven artifact id
-# 例如：LibDownload -> lib-download.md
+更新优先级：
+- **高**（必须更新）：新增功能/API、方法签名变更、使用方式变更
+- **中**（建议更新）：功能增强、新增可选参数
+- **低**（无需更新）：性能优化、内部重构、Bug 修复
 
-for module in $CHANGED_MODULES; do
-    # 转换模块名为文档名
-    DOC_NAME=$(echo $module | sed 's/\([A-Z]\)/-\L\1/g' | sed 's/^-//')
-    
-    # 在各个文档目录查找
-    find use/ -name "${DOC_NAME}.md" -o -name "*${module}*.md"
-done
-```
+## 注意事项
 
-**查找位置：**
-- `use/libs/noui/` - 基础功能模块
-- `use/libs/ui/` - UI相关模块
-- `use/common/` - 公共组件
-- `use/services/` - 三方组件
-- `use/router/` - 路由组件
-
-### 4. 对比文档内容
-
-对找到的文档，检查**接口使用说明**是否需要更新：
-
-**检查项（功能介绍 + 接口手册视角）：**
-- [ ] 新增功能是否已在功能介绍中说明
-- [ ] 新增的 API 是否已在接口手册中说明
-- [ ] 修改的 API 签名是否已更新
-- [ ] 废弃的 API 是否标注
-- [ ] 示例代码是否使用最新 API
-- [ ] 使用方式是否准确
-
-**不检查项：**
-- ❌ 性能优化实现细节
-- ❌ 内部实现逻辑
-- ❌ 版本变更记录
-- ❌ 注释完整性
-
-### 5. 生成更新建议
-
-基于变更分析，生成文档更新建议。
-
-**更新原则：**
-- 简洁明了，突出重点
-- 直接更新为最新使用方式
-- 包含功能介绍和接口使用说明
-- 说明能做什么、怎么使用
-
-**建议格式：**
-```markdown
-📄 文档更新建议
-
-模块: LibDownload
-文档: use/libs/noui/lib-download.md
-
-🔍 变更检测:
-- ✨ 新增功能: 支持自定义下载配置
-- 🔧 API 变更: DownloadManager.init() 方法签名
-
-📝 需要更新的章节:
-1. "功能简介" → 补充配置能力说明
-2. "组件功能" → 添加 DownloadConfig 接口说明
-3. 使用示例 → 更新为最新初始化方式
-```
-
-### 6. 更新优先级
-
-**高优先级**（必须更新）：
-- 新增主要功能、新增公共 API
-- 方法签名变更、API 行为变更
-- 使用方式变更
-
-**中优先级**（建议更新）：
-- 功能增强、新增可选参数
-- 推荐用法变更
-
-**低优先级**（无需更新）：
-- 性能优化、内部重构
-- 注释变更、代码格式调整
-- 依赖更新、Bug 修复（不影响接口使用）
-
-## 文档同步检查报告格式
-
-```
-📊 AAF 文档同步检查报告
-========================
-
-🔍 检查范围: AndroidAppFactory -> AndroidAppFactory-Doc
-📅 检查时间: 2025-11-27 10:00:00
-📌 对比基准: Tag_AAF_7.2.6
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-✅ 需要更新文档的模块 (2)
-
-📦 LibDownload (高优先级)
-   文档: use/libs/noui/lib-download.md
-   变更: ✨ 新增 DownloadConfig | 🔧 修改 init() 方法
-   建议: 📝 自动更新
-
-📦 LibOkhttpWrapper (中优先级)
-   文档: use/libs/noui/lib-okhttp-wrapper.md
-   变更: ✨ 新增 OkHttpClientManager
-   建议: 📝 建议更新
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚪ 无需更新文档的模块 (3)
-- LibUtils (内部重构)
-- LibThread (测试代码变更)
-- LibNetwork (性能优化)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-❌ 缺少文档的模块 (1)
-- LibNewFeature (新模块，建议创建文档)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📈 统计信息
-- 变更模块: 6 | 需更新: 2 | 无需更新: 3 | 缺文档: 1
-- 文档同步率: 83.3%
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
-## 配置选项
-
-### 自动同步级别
-
-**级别1：仅检测提醒**
-- 检测模块变更
-- 提示可能需要更新的文档
-
-**级别2：建议更新**（推荐）
-- 检测模块变更
-- 分析具体变更内容
-- 生成详细的更新建议
-- 由用户确认后更新
-
-**级别3：自动同步**
-- 检测模块变更
-- 自动分析变更
-- 自动更新文档
-- 提交前需要用户确认
-
-### 检测基准
-
-- **最新 AAF Tag**: 从最新的 `Tag_AAF_*` 开始检测
-- **最新 Doc Tag**: 从最新的 `Doc_*` 标签开始检测（如果有）
-- **指定 Tag**: 从用户指定的 Tag 开始检测
-- **时间范围**: 检测指定时间范围内的变更
-
-## 使用场景
-
-### 场景1：创建新模块文档
-用户: "帮我整理一下 LibDownload 的文档"
-→ 执行【完整生成模式】→ 分析源码 → 生成文档 → 添加索引
-
-### 场景2：代码变更后同步文档
-用户: "我修改了 LibDownload，同步一下文档"
-→ 执行【增量更新模式】→ 检测变更 → 生成更新建议 → 更新文档
-
-### 场景3：发布前文档检查
-用户: "准备发布，检查一下文档"
-→ 执行发布检查 → 自动触发文档同步检查 → 生成同步报告
-
-### 场景4：重新整理现有文档
-用户: "重新整理一下 LibDownload 的文档"
-→ 执行【完整生成模式】→ 重新分析 → 生成全新文档 → 替换旧文档
+1. 文档更新需用户确认，不自动提交
+2. 参考标准模板格式，包含功能介绍和接口说明
+3. 示例代码使用最新 API
+4. SUMMARY.md 索引修改必须经用户确认
 
 ## 与其他规则的关系
 
@@ -565,54 +159,3 @@ aaf_doc_management (文档管理)
 ├── 集成 → aaf_release_check (发布前自动触发)
 └── 参考 → aaf_common (项目结构和路径)
 ```
-
-## 注意事项
-
-1. **文档更新策略**
-   - 不自动提交文档变更，需用户确认
-   - 更新后提示用户检查内容
-
-2. **文档标准遵循**
-   - 参考标准模板格式
-   - 包含功能介绍和接口使用说明
-   - 不涉及性能优化实现、内部逻辑等
-
-3. **版本更新原则**
-   - 直接更新为最新版本
-   - 示例代码使用最新 API
-
-4. **内容过滤规则**
-   - ❌ 排除：性能优化实现、内部逻辑、注释格式、测试代码、构建配置
-   - ✅ 关注：功能变化、API 变化、使用方式变化
-
-5. **SUMMARY.md 索引管理**
-   - 禁止未经用户确认直接修改
-   - 必须先提供建议的插入位置
-
-## 执行清单
-
-### 完整生成模式
-- [ ] 分析模块源码结构和主要功能
-- [ ] 生成文档符合标准格式
-- [ ] 包含功能介绍和接口手册
-- [ ] 不包含性能优化实现细节
-- [ ] 提供 SUMMARY.md 插入位置建议
-- [ ] 用户已确认索引插入
-
-### 增量更新模式
-- [ ] 检测到的模块变更准确
-- [ ] 找到对应的文档文件
-- [ ] 分析功能变化和 API 变更
-- [ ] 生成合理的更新建议
-- [ ] 示例代码使用最新 API
-- [ ] 用户已确认更新内容
-
-## 输出要求
-
-- 生成完整的 markdown 文档
-- 文件名格式：`[maven-artifact].md`（如：`lib-aaf-tools.md`）
-- 内容控制在合理篇幅内（通常不超过 200 行）
-- 包含功能介绍和接口使用说明
-- 不包含性能优化、内部实现等细节
-- 确保所有链接和引用正确
-- **必须向用户确认 SUMMARY.md 索引的插入位置后再添加**

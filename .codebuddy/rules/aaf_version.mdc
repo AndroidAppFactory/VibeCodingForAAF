@@ -1,9 +1,8 @@
 ---
-name: aaf_version
 description: AAF 模块版本查找规则 - 在 dependencies 配置中查找模块版本
 alwaysApply: false
 enabled: true
-updatedAt: 2025-11-28T08:00:00.000Z
+updatedAt: 2026-02-26T12:00:00.000Z
 provider: 
 ---
 
@@ -291,10 +290,3 @@ curl -s "https://repo1.maven.org/maven2/com/bihe0832/android/common-wrapper/mave
 - `aaf_common.mdc` - AAF 框架通用规范
 - `aaf_commands.mdc` - 命令索引
 
----
-
-## 📚 参考资源
-
-- AAF GitHub: https://github.com/bihe0832/AndroidAppFactory
-- Maven 中央仓库: https://repo1.maven.org/maven2/com/bihe0832/android/
-- AAF 文档: AndroidAppFactory-Doc 项目

@@ -2,7 +2,7 @@
 description: AAF 框架通用开发规范 - AndroidAppFactory 项目开发标准和流程
 alwaysApply: true
 enabled: true
-updatedAt: 2025-11-28T08:00:00.000Z
+updatedAt: 2026-02-26T12:00:00.000Z
 provider: 
 ---
 
@@ -112,7 +112,7 @@ provider:
 
 - 🎮 **快速命令入口**（参见 `aaf_commands.mdc`）- 所有命令的统一索引
 - 📝 代码注释遵循 AAF 注释规范（参见 `aaf_note.mdc`）
-- 🎯 Demo 开发在 Template-Empty 项目中进行（参见 `aaf_demo.mdc`）
+- 🎯 Demo 开发在 AAF-Temp 项目中进行（参见 `aaf_demo.mdc`）
 - 🔗 依赖管理遵循集中式配置规范（参见 `aaf_dependency.mdc`）
 - 📚 文档生成、同步、更新统一管理（参见 `aaf_doc_management.mdc`）
 - 🔍 发布前执行发布检查规则（参见 `aaf_release_check.mdc`）

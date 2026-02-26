@@ -2,7 +2,7 @@
 description: AAF Sample 项目升级规则 - 自动升级示例项目到最新 AAF 版本
 alwaysApply: false
 enabled: true
-updatedAt: 2025-11-28T16:00:00.000Z
+updatedAt: 2026-02-26T10:00:00.000Z
 provider: 
 ---
 
@@ -10,92 +10,60 @@ provider:
 
 ## 📖 规则说明
 
-本规则用于触发 **aaf-sample-upgrade** skill，自动升级三个 Sample 示例项目的 AAF 框架版本和编译配置。
+本规则用于触发 **aaf-sample-upgrade** skill，通过 Agent 子代理自动升级三个 Sample 示例项目。
 
-**项目说明**（按升级优先级排序）：
-- **Template-AAF** - 完整示例（第一优先级）⭐
-- **Template_Android** - 基础示例（第二优先级）
-- **Template-Empty** - 最简示例（第三优先级）
-
-**技术栈**：Kotlin + Gradle + Jetpack Compose
+**说明**：无论说"升级demo"还是"升级sample"，都是升级外部示例项目，不是 AAF-Temp。
 
 ---
 
 ## 🎯 触发条件
 
 当用户说出以下关键词时，自动调用 **aaf-sample-upgrade** skill：
-- "升级sample" / "升级Sample"
-- "升级demo" / "升级Demo"
+- "升级sample" / "升级Sample" / "升级demo" / "升级Demo"
 - "更新sample版本" / "更新demo版本"
-- "同步sample配置"
-- "升级示例项目"
-- "更新Template"
+- "同步sample配置" / "升级示例项目" / "更新Template"
 - "验证升级"
-
-**说明**：无论说"升级demo"还是"升级sample"，都是升级外部示例项目（Template-AAF/Template_Android/Template-Empty），因为这些是提供给外部开发者的标准示例。AAF-Temp 是内部临时开发项目，不需要专门升级。
 
 ---
 
-## 🎯 升级策略
+## 🔧 执行架构
 
-**核心原则：先 Template-AAF，后其余两个**
+```
+主 Agent 加载 aaf-sample-upgrade Skill
+    ↓
+步骤 1：Agent: aaf-project-finder → 定位项目位置
+    ↓
+步骤 2：Agent: aaf-config-reader → 拉取 AAF 代码 + 读取配置
+    ↓
+步骤 3：Agent: aaf-sample-updater → 拉取代码 + 升级 Template-AAF ⭐
+    ↓ 成功后
+步骤 4+5：Agent × 2 并发 → 各自拉取代码 + 升级 Template_Android + Template-Empty
+    ↓
+步骤 6+7：汇总报告 + 提交建议
+```
 
-### 升级顺序
-```
-1. Template-AAF（完整示例）⭐
-   ↓
-   [遇到问题 → 用户协助修复 → 验证通过]
-   ↓
-2. Template_Android（基础示例）
-   ↓
-   [参照 Template-AAF 的修改方案]
-   ↓
-3. Template-Empty（最简示例）
-   ↓
-   [参照 Template-AAF 的修改方案]
-   ↓
-完成
-```
+### Agent 说明
+
+| Agent | 职责 |
+|-------|------|
+| `aaf-project-finder` | 定位所有 AAF 相关项目的绝对路径（通用，可被其他 Skill 复用） |
+| `aaf-config-reader` | 拉取 AAF 最新代码 + 读取 SDK 配置、模块版本（只读） |
+| `aaf-sample-updater` | 拉取 Template 最新代码 + 升级单个项目：修改配置、同步依赖和 UI 代码、验证编译 |
 
 ### 升级内容
 
-**必须检查和同步**：
-1. ✅ **配置文件** - SDK、Kotlin、Gradle、Compose 版本
-2. ✅ **AAF 依赖** - 所有 `com.bihe0832.android:xxx` 制品
-3. ✅ **Compose UI** - DebugMainActivity.kt、DebugTempView.kt、DebugRouterView.kt
-4. ✅ **Manifest** - android:exported 属性
-5. ✅ **编译验证** - 确保所有项目编译通过
-
----
-
-## 🔧 执行方式
-
-**触发 aaf-sample-upgrade skill**：
-
-当用户说出触发关键词时，AI 会自动调用 `aaf-sample-upgrade` skill 执行升级。
-
-Skill 提供：
-- 📜 辅助脚本（项目定位、配置读取、编译验证）
-- ⚙️ 详细执行步骤和检查清单
-- 🤖 完整的升级流程指导
-
----
-
-## 📋 快速参考
-
-| 检查项 | 配置源 | 目标项目 |
-|--------|--------|----------|
-| AAF 版本 | AndroidAppFactory/dependencies.gradle | 所有 Sample 项目 |
-| SDK 配置 | AndroidAppFactory/config.gradle | 所有 Sample 项目 |
-| Kotlin/Gradle | AndroidAppFactory/build.gradle | 所有 Sample 项目 |
-| Compose 版本 | AndroidAppFactory/config.gradle | 所有 Sample 项目 |
-| Compose UI | AAF/APPTest/*.kt | Template-AAF/Template_Android |
+配置文件、AAF 依赖、Compose UI 代码、Manifest、编译验证 — 详见 Skill。
 
 ---
 
 ## 🔗 相关资源
 
-- **Skill**: `aaf-sample-upgrade` - 详细执行步骤和辅助脚本
-- **Rule**: `aaf_version.mdc` - AAF 模块版本查找方法
-- **Rule**: `aaf_dependency.mdc` - 依赖管理规范
-- **Rule**: `aaf_git.mdc` - Git 提交规范
+| 类型 | 名称 | 说明 |
+|------|------|------|
+| Skill | `aaf-sample-upgrade` | 完整升级流程、步骤和检查清单 |
+| Agent | `aaf-project-finder` | 定位 AAF 相关项目位置（通用） |
+| Agent | `aaf-config-reader` | 读取 AAF 配置的子代理 |
+| Agent | `aaf-sample-updater` | 执行单个项目升级的子代理 |
+| Rule | `aaf_version` | 模块版本查找方法 |
+| Rule | `aaf_dependency` | 依赖管理规范 |
+| Rule | `aaf_git` | Git 提交规范 |

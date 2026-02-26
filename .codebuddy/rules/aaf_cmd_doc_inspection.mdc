@@ -2,7 +2,7 @@
 description: AAF 文档巡检规则 - 检查框架模块与文档的对应关系
 alwaysApply: false
 enabled: true
-updatedAt: 2025-11-28T08:00:00.000Z
+updatedAt: 2026-02-26T12:00:00.000Z
 provider: 
 ---
 
@@ -13,23 +13,7 @@ provider:
 
 ## 巡检任务
 
-### 📋 任务进度展示
-
-**执行文档巡检时，必须使用 todo_write 工具创建任务列表展示进度：**
-
-```json
-[
-  {"id": "1", "status": "in_progress", "content": "扫描 AndroidAppFactory 模块"},
-  {"id": "2", "status": "pending", "content": "扫描 AndroidAppFactory-Doc 文档"},
-  {"id": "3", "status": "pending", "content": "检查 SUMMARY.md 索引"},
-  {"id": "4", "status": "pending", "content": "对比分析模块与文档"},
-  {"id": "5", "status": "pending", "content": "生成巡检报告"}
-]
-```
-
-**随着流程推进，实时更新任务状态（pending → in_progress → completed）。**
-
----
+使用 todo_write 工具展示进度，按以下步骤执行：
 
 1. **扫描 AndroidAppFactory 目录**
    - 识别所有模块、组件、功能目录
