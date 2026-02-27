@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "globalIgnores": [
+    "deprecated-rule-001",
+    "legacy-naming-convention"
+  ],
+  "projectIgnores": {
+    "AAF-Temp": [
+      "strict-documentation",
+      "complex-architecture-rules",
+      "performance-optimization"
+    ],
+    "Template-Empty": [
+      "comprehensive-comments",
+      "advanced-error-handling"
+    ]
+  },
+  "fileIgnores": {
+    "*/build/generated/**": ["all-rules"],
+    "*/R.java": ["naming-conventions", "documentation"],
+    "*/BuildConfig.java": ["all-rules"],
+    "**/*.proto": ["code-style"],
+    "**/test/**": ["strict-documentation"],
+    "**/*Test.kt": ["method-length", "class-complexity"]
+  },
+  "ruleCategories": {
+    "legacy-compatibility": {
+      "enabled": false,
+      "reason": "项目需要兼容旧版本API"
+    },
+    "experimental-features": {
+      "enabled": false,
+      "reason": "实验性功能暂时忽略严格检查"
+    }
+  },
+  "temporaryIgnores": {
+    "deadline": "2024-03-31T23:59:59Z",
+    "rules": []
+  },
+  "conditionalIgnores": {
+    "byFileSize": {
+      "threshold": 1000,
+      "ignoredRules": ["file-length-warning"]
+    },
+    "byComplexity": {
+      "threshold": 15,
+      "ignoredRules": ["method-complexity-info"]
+    }
+  }
+}

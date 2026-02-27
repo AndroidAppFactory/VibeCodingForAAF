@@ -1,0 +1,957 @@
+# AAF 代码质量配置规范
+
+## 配置文件体系
+
+AAF 代码质量检查系统使用多层级配置文件管理检查规则、项目设置和历史记录。
+
+### 配置文件结构
+
+```
+.codebuddy/config/
+├── quality-check-config.json       # 主配置文件
+├── code-standards-rules.json       # 代码规范规则
+├── quality-ignore-rules.json       # 忽略规则配置
+├── android-quality-rules.json      # Android质量检查规则
+├── interface-design-rules.json     # 接口设计原则规则
+├── aaf-framework-rules.json        # AAF框架使用规则
+├── aaf-architecture-rules.json     # AAF架构规范规则
+└── quality-check-history.json      # 检查历史记录
+```
+
+## 主配置文件
+
+### quality-check-config.json
+
+```json
+{
+  "version": "1.0.0",
+  "lastCheckTime": "2024-02-27T10:30:00Z",
+  "projects": [
+    {
+      "name": "AndroidAppFactory",
+      "path": "/path/to/AndroidAppFactory",
+      "enabled": true,
+      "priority": "high",
+      "excludePatterns": [
+        "build/",
+        "*.tmp",
+        ".gradle/",
+        "generated/"
+      ],
+      "projectIgnoreRules": [
+        "legacy-compatibility",
+        "experimental-features"
+      ],
+      "lastCheckHash": "abc123def456",
+      "checkTypes": {
+        "codeStyle": true,
+        "codeReview": true,
+        "aafArchitecture": true
+      }
+    },
+    {
+      "name": "AAF-Temp",
+      "path": "/path/to/AAF-Temp",
+      "enabled": true,
+      "priority": "medium",
+      "excludePatterns": [
+        "build/",
+        "*.tmp"
+      ],
+      "projectIgnoreRules": [
+        "strict-documentation",
+        "complex-architecture-rules"
+      ],
+      "lastCheckHash": "def456ghi789",
+      "checkTypes": {
+        "codeStyle": true,
+        "codeReview": false,
+        "aafArchitecture": true
+      }
+    }
+  ],
+  "globalSettings": {
+    "concurrency": {
+      "maxConcurrentTasks": 10,
+      "taskTimeout": 300,
+      "memoryLimit": "2GB"
+    },
+    "reporting": {
+      "format": "markdown",
+      "detailLevel": "normal",
+      "includeMetrics": true,
+      "saveHistory": true
+    },
+    "autoFix": {
+      "enabled": true,
+      "levels": ["info", "warning"],
+      "backupBeforeFix": true,
+      "confirmBeforeCommit": true
+    }
+  },
+  "rules": {
+    "codeStyle": {
+      "enabled": true,
+      "configFile": "code-standards-rules.json",
+      "autoFixLevel": "warning",
+      "priority": 1
+    },
+    "codeReview": {
+      "enabled": true,
+      "configFile": "android-quality-rules.json",
+      "autoFixLevel": "info",
+      "priority": 2
+    },
+    "aafArchitecture": {
+      "enabled": true,
+      "configFile": "aaf-architecture-rules.json",
+      "autoFixLevel": "info",
+      "priority": 3
+    },
+    "interfaceDesign": {
+      "enabled": true,
+      "configFile": "interface-design-rules.json",
+      "autoFixLevel": "none",
+      "priority": 4
+    }
+  },
+  "notifications": {
+    "onCompletion": true,
+    "onError": true,
+    "emailNotification": false,
+    "slackWebhook": null
+  }
+}
+```
+
+## 代码规范规则
+
+### code-standards-rules.json
+
+```json
+{
+  "version": "1.0.0",
+  "baseStandard": "../../../mna/standards",
+  "language": {
+    "kotlin": {
+      "enabled": true,
+      "rules": {
+        "formatting": {
+          "indentation": {
+            "type": "spaces",
+            "size": 4,
+            "level": "error",
+            "autoFix": true
+          },
+          "lineLength": {
+            "max": 120,
+            "level": "warning",
+            "autoWrap": true
+          },
+          "blankLines": {
+            "maxConsecutive": 2,
+            "beforeClass": 1,
+            "beforeMethod": 1,
+            "level": "info",
+            "autoFix": true
+          },
+          "whitespace": {
+            "removeTrailing": true,
+            "aroundOperators": true,
+            "afterComma": true,
+            "level": "info",
+            "autoFix": true
+          }
+        },
+        "naming": {
+          "classes": {
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "level": "error",
+            "examples": ["UserService", "DataManager"]
+          },
+          "methods": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "level": "error",
+            "examples": ["getUserData", "processResult"]
+          },
+          "variables": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "level": "warning",
+            "examples": ["userName", "isValid"]
+          },
+          "constants": {
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "level": "error",
+            "examples": ["MAX_COUNT", "DEFAULT_TIMEOUT"]
+          }
+        },
+        "comments": {
+          "fileHeader": {
+            "required": true,
+            "level": "warning",
+            "template": "standard",
+            "autoGenerate": true,
+            "fields": ["author", "date", "description"]
+          },
+          "publicMethods": {
+            "required": true,
+            "level": "warning",
+            "includeParams": true,
+            "includeReturn": true
+          },
+          "publicClasses": {
+            "required": true,
+            "level": "error",
+            "includeDescription": true,
+            "includeAuthor": true
+          }
+        }
+      }
+    },
+    "java": {
+      "enabled": true,
+      "rules": {
+        "formatting": {
+          "indentation": {
+            "type": "spaces",
+            "size": 4,
+            "level": "error",
+            "autoFix": true
+          },
+          "braces": {
+            "style": "egyptian",
+            "level": "warning",
+            "autoFix": true
+          }
+        },
+        "naming": {
+          "classes": {
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "level": "error"
+          },
+          "methods": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "level": "error"
+          }
+        }
+      }
+    }
+  },
+  "imports": {
+    "organization": {
+      "enabled": true,
+      "groups": ["android", "java", "kotlin", "others"],
+      "blankLinesBetweenGroups": true,
+      "sortWithinGroups": true,
+      "level": "info",
+      "autoFix": true
+    },
+    "unusedImports": {
+      "remove": true,
+      "level": "info",
+      "autoFix": true
+    },
+    "wildcardImports": {
+      "avoid": true,
+      "threshold": 5,
+      "level": "warning"
+    }
+  },
+  "structure": {
+    "memberOrder": {
+      "enabled": true,
+      "order": [
+        "constants",
+        "static_fields", 
+        "fields",
+        "constructors",
+        "methods",
+        "nested_classes"
+      ],
+      "level": "info"
+    },
+    "modifierOrder": {
+      "enabled": true,
+      "order": [
+        "public",
+        "protected", 
+        "private",
+        "abstract",
+        "static",
+        "final"
+      ],
+      "level": "warning",
+      "autoFix": true
+    }
+  }
+}
+```
+
+## 忽略规则配置
+
+### quality-ignore-rules.json
+
+```json
+{
+  "version": "1.0.0",
+  "globalIgnores": [
+    "deprecated-rule-001",
+    "legacy-naming-convention",
+    "experimental-api-usage"
+  ],
+  "projectIgnores": {
+    "AAF-Temp": [
+      "strict-documentation",
+      "complex-architecture-rules",
+      "performance-optimization"
+    ],
+    "Template-Empty": [
+      "comprehensive-comments",
+      "advanced-error-handling"
+    ],
+    "AndroidAppFactory": [
+      "legacy-compatibility-warnings"
+    ]
+  },
+  "fileIgnores": {
+    "*/build/generated/**": ["all-rules"],
+    "*/R.java": ["naming-conventions", "documentation"],
+    "*/BuildConfig.java": ["all-rules"],
+    "**/*.proto": ["code-style"],
+    "**/test/**": ["strict-documentation"],
+    "**/*Test.kt": ["method-length", "class-complexity"]
+  },
+  "ruleCategories": {
+    "legacy-compatibility": {
+      "enabled": false,
+      "reason": "项目需要兼容旧版本API"
+    },
+    "experimental-features": {
+      "enabled": false,
+      "reason": "实验性功能暂时忽略严格检查"
+    },
+    "performance-micro-optimization": {
+      "enabled": false,
+      "reason": "微优化在当前阶段优先级较低"
+    }
+  },
+  "temporaryIgnores": {
+    "deadline": "2024-03-31T23:59:59Z",
+    "rules": [
+      {
+        "ruleId": "method-complexity",
+        "files": ["UserManager.kt", "DataProcessor.kt"],
+        "reason": "重构计划中，临时忽略"
+      }
+    ]
+  },
+  "conditionalIgnores": {
+    "byFileSize": {
+      "threshold": 1000,
+      "ignoredRules": ["file-length-warning"]
+    },
+    "byComplexity": {
+      "threshold": 15,
+      "ignoredRules": ["method-complexity-info"]
+    }
+  }
+}
+```
+
+## Android质量检查规则
+
+### android-quality-rules.json
+
+```json
+{
+  "version": "1.0.0",
+  "categories": {
+    "architecture": {
+      "enabled": true,
+      "rules": {
+        "layerViolation": {
+          "enabled": true,
+          "level": "warning",
+          "description": "检查分层架构违规",
+          "patterns": [
+            "UI层直接访问数据层",
+            "跨层级依赖调用"
+          ]
+        },
+        "moduleDependency": {
+          "enabled": true,
+          "level": "error",
+          "checkCircularDependency": true,
+          "maxDependencyDepth": 5
+        },
+        "singletonPattern": {
+          "enabled": true,
+          "level": "info",
+          "preferEnum": true,
+          "threadSafety": true
+        }
+      }
+    },
+    "performance": {
+      "enabled": true,
+      "rules": {
+        "mainThreadBlocking": {
+          "enabled": true,
+          "level": "error",
+          "patterns": [
+            "\\.execute\\(\\)",
+            "Thread\\.sleep\\(",
+            "synchronized.*long"
+          ],
+          "suggestions": ["使用异步处理", "使用协程"]
+        },
+        "memoryAllocation": {
+          "enabled": true,
+          "level": "warning",
+          "checkLoopAllocation": true,
+          "checkStringConcatenation": true
+        },
+        "viewHolderPattern": {
+          "enabled": true,
+          "level": "warning",
+          "enforceInRecyclerView": true
+        }
+      }
+    },
+    "crashRisk": {
+      "enabled": true,
+      "rules": {
+        "nullPointer": {
+          "enabled": true,
+          "level": "error",
+          "checkNullableAccess": true,
+          "requireNullChecks": true
+        },
+        "exceptionHandling": {
+          "enabled": true,
+          "level": "warning",
+          "requireTryCatch": [
+            "JSON解析",
+            "网络请求", 
+            "文件操作",
+            "数据库操作"
+          ]
+        },
+        "resourceLeaks": {
+          "enabled": true,
+          "level": "error",
+          "checkStreamClosing": true,
+          "checkCursorClosing": true
+        }
+      }
+    },
+    "memoryLeak": {
+      "enabled": true,
+      "rules": {
+        "contextLeak": {
+          "enabled": true,
+          "level": "error",
+          "patterns": [
+            "static.*Context",
+            "Handler.*Activity",
+            "AsyncTask.*Activity"
+          ]
+        },
+        "listenerLeak": {
+          "enabled": true,
+          "level": "warning",
+          "checkLifecycleManagement": true,
+          "requireUnregister": true
+        },
+        "innerClassLeak": {
+          "enabled": true,
+          "level": "warning",
+          "preferStaticInnerClass": true
+        }
+      }
+    }
+  },
+  "metrics": {
+    "complexity": {
+      "methodComplexity": {
+        "threshold": 10,
+        "level": "warning"
+      },
+      "classComplexity": {
+        "threshold": 50,
+        "level": "info"
+      }
+    },
+    "size": {
+      "methodLength": {
+        "threshold": 50,
+        "level": "info"
+      },
+      "classLength": {
+        "threshold": 500,
+        "level": "warning"
+      }
+    }
+  }
+}
+```
+
+## 接口设计原则规则
+
+### interface-design-rules.json
+
+```json
+{
+  "version": "1.0.0",
+  "baseReference": "https://blog.bihe0832.com/principles.html",
+  "principles": {
+    "singleResponsibility": {
+      "enabled": true,
+      "level": "warning",
+      "description": "单一职责原则 - 一个类应该只有一个引起它变化的原因",
+      "checks": {
+        "methodCount": {
+          "threshold": 20,
+          "suggestion": "考虑拆分类职责"
+        },
+        "responsibilityMixing": {
+          "patterns": [
+            "数据访问与业务逻辑混合",
+            "UI逻辑与数据处理混合"
+          ]
+        }
+      }
+    },
+    "openClosed": {
+      "enabled": true,
+      "level": "info",
+      "description": "开闭原则 - 对扩展开放，对修改关闭",
+      "checks": {
+        "extensibility": {
+          "preferInterfaces": true,
+          "avoidFinalClasses": true
+        },
+        "modification": {
+          "checkFrequentChanges": true,
+          "suggestAbstraction": true
+        }
+      }
+    },
+    "liskovSubstitution": {
+      "enabled": true,
+      "level": "error",
+      "description": "里氏替换原则 - 子类必须能够替换其基类",
+      "checks": {
+        "contractViolation": {
+          "checkPreconditions": true,
+          "checkPostconditions": true
+        },
+        "behaviorChange": {
+          "checkExceptionChanges": true,
+          "checkReturnTypeChanges": true
+        }
+      }
+    },
+    "interfaceSegregation": {
+      "enabled": true,
+      "level": "warning",
+      "description": "接口隔离原则 - 客户端不应该依赖它不需要的接口",
+      "checks": {
+        "interfaceSize": {
+          "maxMethods": 10,
+          "suggestion": "考虑拆分接口"
+        },
+        "clientUsage": {
+          "checkUnusedMethods": true,
+          "suggestSplitting": true
+        }
+      }
+    },
+    "dependencyInversion": {
+      "enabled": true,
+      "level": "warning",
+      "description": "依赖倒置原则 - 高层模块不应该依赖低层模块",
+      "checks": {
+        "abstractionDependency": {
+          "preferInterfaces": true,
+          "avoidConcreteClasses": true
+        },
+        "dependencyDirection": {
+          "checkLayerViolation": true,
+          "suggestInjection": true
+        }
+      }
+    },
+    "demeter": {
+      "enabled": true,
+      "level": "info",
+      "description": "迪米特法则 - 一个对象应该对其他对象有最少的了解",
+      "checks": {
+        "methodChaining": {
+          "maxChainLength": 3,
+          "suggestion": "避免过长的方法链"
+        },
+        "friendClasses": {
+          "limitFriendship": true,
+          "checkCoupling": true
+        }
+      }
+    }
+  },
+  "autoFix": {
+    "enabled": false,
+    "reason": "设计原则问题通常需要人工判断和重构"
+  },
+  "suggestions": {
+    "singleResponsibility": [
+      "将不同职责的方法提取到不同的类中",
+      "使用组合模式替代继承",
+      "考虑使用策略模式分离算法"
+    ],
+    "openClosed": [
+      "使用抽象类或接口定义扩展点",
+      "应用模板方法模式",
+      "考虑使用装饰器模式"
+    ],
+    "liskovSubstitution": [
+      "确保子类不改变父类的行为契约",
+      "避免在子类中抛出新的异常",
+      "保持方法签名的兼容性"
+    ],
+    "interfaceSegregation": [
+      "将大接口拆分为多个小接口",
+      "使用适配器模式处理接口不匹配",
+      "考虑使用组合替代继承"
+    ],
+    "dependencyInversion": [
+      "使用依赖注入框架",
+      "定义抽象接口隔离具体实现",
+      "应用工厂模式创建对象"
+    ],
+    "demeter": [
+      "减少对象间的直接交互",
+      "使用中介者模式",
+      "封装对象的内部结构"
+    ]
+  }
+}
+```
+
+## AAF框架使用规则
+
+### aaf-framework-rules.json
+
+```json
+{
+  "version": "1.0.0",
+  "frameworkModules": {
+    "LibNetwork": {
+      "description": "网络请求管理",
+      "replaces": ["OkHttp", "Retrofit", "Volley"],
+      "usage": "LibNetwork.getInstance().doGet(url, callback)",
+      "level": "warning"
+    },
+    "LibFile": {
+      "description": "文件操作工具",
+      "replaces": ["自定义文件工具", "Apache Commons IO"],
+      "usage": "LibFile.copyFile(src, dst)",
+      "level": "info"
+    },
+    "LibThread": {
+      "description": "线程管理",
+      "replaces": ["Thread", "AsyncTask", "Executor"],
+      "usage": "LibThread.getInstance().runOnBackgroundThread(task)",
+      "level": "warning"
+    },
+    "LibImage": {
+      "description": "图片处理",
+      "replaces": ["Glide", "Picasso", "Fresco"],
+      "usage": "LibImage.loadImage(url, imageView)",
+      "level": "info"
+    },
+    "LibDownload": {
+      "description": "下载管理",
+      "replaces": ["DownloadManager", "自定义下载"],
+      "usage": "LibDownload.download(url, path, callback)",
+      "level": "warning"
+    }
+  },
+  "detectionRules": {
+    "networkLibraries": {
+      "patterns": [
+        "import.*okhttp3",
+        "import.*retrofit2",
+        "import.*volley",
+        "OkHttpClient",
+        "Retrofit\\.Builder"
+      ],
+      "suggestion": "使用AAF LibNetwork替代第三方网络库",
+      "autoFix": false
+    },
+    "threadManagement": {
+      "patterns": [
+        "new Thread\\(",
+        "AsyncTask",
+        "Executors\\.",
+        "ThreadPoolExecutor"
+      ],
+      "suggestion": "使用AAF LibThread进行线程管理",
+      "autoFix": false
+    },
+    "fileOperations": {
+      "patterns": [
+        "Files\\.copy",
+        "FileUtils\\.",
+        "IOUtils\\."
+      ],
+      "suggestion": "使用AAF LibFile进行文件操作",
+      "autoFix": false
+    }
+  },
+  "versionCheck": {
+    "enabled": true,
+    "aafVersionSource": "../AndroidAppFactory/dependencies.gradle",
+    "checkFrequency": "daily",
+    "rules": {
+      "outdatedVersion": {
+        "level": "warning",
+        "threshold": "1.0.0",
+        "suggestion": "升级到最新AAF版本"
+      },
+      "betaVersion": {
+        "level": "info",
+        "allowInProduction": false
+      }
+    }
+  },
+  "usageAnalytics": {
+    "enabled": true,
+    "trackUsageRate": true,
+    "generateReports": true,
+    "metrics": {
+      "aafUsageRate": {
+        "target": 0.8,
+        "level": "info"
+      },
+      "thirdPartyDependencies": {
+        "maxCount": 10,
+        "level": "warning"
+      }
+    }
+  }
+}
+```
+
+## AAF架构规范规则
+
+### aaf-architecture-rules.json
+
+```json
+{
+  "version": "1.0.0",
+  "dependencyManagement": {
+    "enabled": true,
+    "rules": {
+      "centralizedDependencies": {
+        "enabled": true,
+        "level": "error",
+        "description": "所有依赖必须在根目录dependencies_*.gradle中管理",
+        "configFiles": [
+          "dependencies.gradle",
+          "dependencies_kotlin.gradle",
+          "dependencies_android.gradle"
+        ],
+        "forbiddenLocations": [
+          "*/build.gradle",
+          "*/app/build.gradle"
+        ]
+      },
+      "dependencyFormat": {
+        "enabled": true,
+        "level": "warning",
+        "requiredFormat": "implementation deps.moduleName",
+        "forbiddenFormat": "implementation 'group:artifact:version'"
+      },
+      "circularDependency": {
+        "enabled": true,
+        "level": "error",
+        "checkGradleModules": true
+      }
+    }
+  },
+  "versionManagement": {
+    "enabled": true,
+    "rules": {
+      "aafVersionConsistency": {
+        "enabled": true,
+        "level": "error",
+        "description": "确保所有AAF模块使用相同版本",
+        "versionSource": "../AndroidAppFactory/dependencies.gradle"
+      },
+      "outdatedDependencies": {
+        "enabled": true,
+        "level": "warning",
+        "checkFrequency": "weekly",
+        "autoUpdate": false
+      }
+    }
+  },
+  "moduleStructure": {
+    "enabled": true,
+    "rules": {
+      "namingConvention": {
+        "enabled": true,
+        "level": "warning",
+        "modulePrefix": "Lib",
+        "examples": ["LibNetwork", "LibFile", "LibThread"]
+      },
+      "packageStructure": {
+        "enabled": true,
+        "level": "info",
+        "basePackage": "com.bihe0832",
+        "enforceConsistency": true
+      }
+    }
+  },
+  "buildConfiguration": {
+    "enabled": true,
+    "rules": {
+      "gradleVersion": {
+        "enabled": true,
+        "level": "warning",
+        "minVersion": "7.0.0",
+        "source": "../AndroidAppFactory/gradle/wrapper/gradle-wrapper.properties"
+      },
+      "kotlinVersion": {
+        "enabled": true,
+        "level": "warning",
+        "source": "../AndroidAppFactory/dependencies_kotlin.gradle"
+      },
+      "compileSdkVersion": {
+        "enabled": true,
+        "level": "info",
+        "source": "../AndroidAppFactory/dependencies_android.gradle"
+      }
+    }
+  }
+}
+```
+
+## 检查历史记录
+
+### quality-check-history.json
+
+```json
+{
+  "version": "1.0.0",
+  "history": [
+    {
+      "checkId": "20240227-103000",
+      "timestamp": "2024-02-27T10:30:00Z",
+      "type": "incremental",
+      "projects": ["AndroidAppFactory", "AAF-Temp"],
+      "summary": {
+        "totalFiles": 23,
+        "totalIssues": 15,
+        "autoFixed": 12,
+        "needsConfirmation": 3
+      },
+      "categories": {
+        "codeStyle": {
+          "issues": 8,
+          "fixed": 7
+        },
+        "codeReview": {
+          "issues": 5,
+          "fixed": 3
+        },
+        "aafArchitecture": {
+          "issues": 2,
+          "fixed": 2
+        }
+      },
+      "duration": 45,
+      "performance": {
+        "filesPerSecond": 0.51,
+        "issuesPerSecond": 0.33
+      }
+    }
+  ],
+  "trends": {
+    "issueCount": {
+      "last7Days": [15, 12, 8, 6, 4, 3, 2],
+      "trend": "decreasing"
+    },
+    "autoFixRate": {
+      "last7Days": [0.8, 0.83, 0.87, 0.9, 0.92, 0.95, 0.96],
+      "trend": "increasing"
+    },
+    "codeQualityScore": {
+      "current": 85,
+      "target": 90,
+      "trend": "improving"
+    }
+  },
+  "metrics": {
+    "totalChecks": 156,
+    "totalIssuesFound": 1247,
+    "totalIssuesFixed": 1089,
+    "averageFixRate": 0.87,
+    "mostCommonIssues": [
+      "formatting-indentation",
+      "naming-camelCase",
+      "imports-unused"
+    ]
+  }
+}
+```
+
+## 配置管理最佳实践
+
+### 1. 配置文件维护
+
+#### 版本控制
+- 所有配置文件纳入版本控制
+- 使用语义化版本号管理配置变更
+- 提供配置升级和迁移脚本
+
+#### 备份策略
+- 自动备份配置文件
+- 支持配置回滚
+- 提供配置验证机制
+
+### 2. 团队协作
+
+#### 统一配置
+- 团队使用相同的基础配置
+- 允许项目级个性化设置
+- 定期同步和更新配置
+
+#### 配置审查
+- 配置变更需要团队审查
+- 记录配置变更原因
+- 评估配置变更影响
+
+### 3. 性能优化
+
+#### 配置缓存
+- 缓存解析后的配置对象
+- 避免重复读取配置文件
+- 监控配置文件变更
+
+#### 懒加载
+- 按需加载配置规则
+- 延迟初始化复杂配置
+- 优化配置文件大小
+
+### 4. 扩展性设计
+
+#### 插件机制
+- 支持自定义规则插件
+- 提供规则扩展接口
+- 支持动态加载规则
+
+#### 配置模板
+- 提供常用配置模板
+- 支持配置继承
+- 简化新项目配置

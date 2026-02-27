@@ -1,0 +1,94 @@
+{
+  "version": "1.0.0",
+  "frameworkModules": {
+    "LibNetwork": {
+      "description": "网络请求管理",
+      "replaces": ["OkHttp", "Retrofit", "Volley"],
+      "usage": "LibNetwork.getInstance().doGet(url, callback)",
+      "level": "warning"
+    },
+    "LibFile": {
+      "description": "文件操作工具",
+      "replaces": ["自定义文件工具", "Apache Commons IO"],
+      "usage": "LibFile.copyFile(src, dst)",
+      "level": "info"
+    },
+    "LibThread": {
+      "description": "线程管理",
+      "replaces": ["Thread", "AsyncTask", "Executor"],
+      "usage": "LibThread.getInstance().runOnBackgroundThread(task)",
+      "level": "warning"
+    },
+    "LibImage": {
+      "description": "图片处理",
+      "replaces": ["Glide", "Picasso", "Fresco"],
+      "usage": "LibImage.loadImage(url, imageView)",
+      "level": "info"
+    },
+    "LibDownload": {
+      "description": "下载管理",
+      "replaces": ["DownloadManager", "自定义下载"],
+      "usage": "LibDownload.download(url, path, callback)",
+      "level": "warning"
+    }
+  },
+  "detectionRules": {
+    "networkLibraries": {
+      "patterns": [
+        "import.*okhttp3",
+        "import.*retrofit2",
+        "import.*volley",
+        "OkHttpClient",
+        "Retrofit\\.Builder"
+      ],
+      "suggestion": "使用AAF LibNetwork替代第三方网络库",
+      "autoFix": false
+    },
+    "threadManagement": {
+      "patterns": [
+        "new Thread\\(",
+        "AsyncTask",
+        "Executors\\.",
+        "ThreadPoolExecutor"
+      ],
+      "suggestion": "使用AAF LibThread进行线程管理",
+      "autoFix": false
+    },
+    "fileOperations": {
+      "patterns": [
+        "Files\\.copy",
+        "FileUtils\\.",
+        "IOUtils\\."
+      ],
+      "suggestion": "使用AAF LibFile进行文件操作",
+      "autoFix": false
+    }
+  },
+  "versionCheck": {
+    "enabled": true,
+    "aafVersionSource": "../AndroidAppFactory/dependencies.gradle",
+    "checkFrequency": "daily",
+    "rules": {
+      "outdatedVersion": {
+        "level": "warning",
+        "threshold": "1.0.0",
+        "suggestion": "升级到最新AAF版本"
+      }
+    }
+  },
+  "usageAnalytics": {
+    "enabled": true,
+    "trackUsageRate": true,
+    "generateReports": true,
+    "metrics": {
+      "aafUsageRate": {
+        "target": 0.8,
+        "level": "info"
+      },
+      "thirdPartyDependencies": {
+        "maxCount": 10,
+        "level": "warning"
+      }
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "version": "1.0.0",
+  "dependencyManagement": {
+    "enabled": true,
+    "rules": {
+      "centralizedDependencies": {
+        "enabled": true,
+        "level": "error",
+        "description": "所有依赖必须在根目录dependencies_*.gradle中管理",
+        "configFiles": [
+          "dependencies.gradle",
+          "dependencies_kotlin.gradle",
+          "dependencies_android.gradle"
+        ],
+        "forbiddenLocations": [
+          "*/build.gradle",
+          "*/app/build.gradle"
+        ]
+      },
+      "dependencyFormat": {
+        "enabled": true,
+        "level": "warning",
+        "requiredFormat": "implementation deps.moduleName",
+        "forbiddenFormat": "implementation 'group:artifact:version'"
+      },
+      "circularDependency": {
+        "enabled": true,
+        "level": "error",
+        "checkGradleModules": true
+      }
+    }
+  },
+  "versionManagement": {
+    "enabled": true,
+    "rules": {
+      "aafVersionConsistency": {
+        "enabled": true,
+        "level": "error",
+        "description": "确保所有AAF模块使用相同版本",
+        "versionSource": "../AndroidAppFactory/dependencies.gradle"
+      },
+      "outdatedDependencies": {
+        "enabled": true,
+        "level": "warning",
+        "checkFrequency": "weekly",
+        "autoUpdate": false
+      }
+    }
+  },
+  "moduleStructure": {
+    "enabled": true,
+    "rules": {
+      "namingConvention": {
+        "enabled": true,
+        "level": "warning",
+        "modulePrefix": "Lib",
+        "examples": ["LibNetwork", "LibFile", "LibThread"]
+      },
+      "packageStructure": {
+        "enabled": true,
+        "level": "info",
+        "basePackage": "com.bihe0832",
+        "enforceConsistency": true
+      }
+    }
+  },
+  "buildConfiguration": {
+    "enabled": true,
+    "rules": {
+      "gradleVersion": {
+        "enabled": true,
+        "level": "warning",
+        "minVersion": "7.0.0",
+        "source": "../AndroidAppFactory/gradle/wrapper/gradle-wrapper.properties"
+      },
+      "kotlinVersion": {
+        "enabled": true,
+        "level": "warning",
+        "source": "../AndroidAppFactory/dependencies_kotlin.gradle"
+      },
+      "compileSdkVersion": {
+        "enabled": true,
+        "level": "info",
+        "source": "../AndroidAppFactory/dependencies_android.gradle"
+      }
+    }
+  }
+}

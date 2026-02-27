@@ -1,0 +1,156 @@
+{
+  "version": "1.0.0",
+  "baseStandard": "../../../mna/standards",
+  "language": {
+    "kotlin": {
+      "enabled": true,
+      "rules": {
+        "formatting": {
+          "indentation": {
+            "type": "spaces",
+            "size": 4,
+            "level": "error",
+            "autoFix": true
+          },
+          "lineLength": {
+            "max": 120,
+            "level": "warning",
+            "autoWrap": true
+          },
+          "blankLines": {
+            "maxConsecutive": 2,
+            "beforeClass": 1,
+            "beforeMethod": 1,
+            "level": "info",
+            "autoFix": true
+          },
+          "whitespace": {
+            "removeTrailing": true,
+            "aroundOperators": true,
+            "afterComma": true,
+            "level": "info",
+            "autoFix": true
+          }
+        },
+        "naming": {
+          "classes": {
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "level": "error",
+            "examples": ["UserService", "DataManager"]
+          },
+          "methods": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "level": "error",
+            "examples": ["getUserData", "processResult"]
+          },
+          "variables": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "level": "warning",
+            "examples": ["userName", "isValid"]
+          },
+          "constants": {
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "level": "error",
+            "examples": ["MAX_COUNT", "DEFAULT_TIMEOUT"]
+          }
+        },
+        "comments": {
+          "fileHeader": {
+            "required": true,
+            "level": "warning",
+            "template": "standard",
+            "autoGenerate": true,
+            "fields": ["author", "date", "description"]
+          },
+          "publicMethods": {
+            "required": true,
+            "level": "warning",
+            "includeParams": true,
+            "includeReturn": true
+          },
+          "publicClasses": {
+            "required": true,
+            "level": "error",
+            "includeDescription": true,
+            "includeAuthor": true
+          }
+        }
+      }
+    },
+    "java": {
+      "enabled": true,
+      "rules": {
+        "formatting": {
+          "indentation": {
+            "type": "spaces",
+            "size": 4,
+            "level": "error",
+            "autoFix": true
+          },
+          "braces": {
+            "style": "egyptian",
+            "level": "warning",
+            "autoFix": true
+          }
+        },
+        "naming": {
+          "classes": {
+            "pattern": "^[A-Z][a-zA-Z0-9]*$",
+            "level": "error"
+          },
+          "methods": {
+            "pattern": "^[a-z][a-zA-Z0-9]*$",
+            "level": "error"
+          }
+        }
+      }
+    }
+  },
+  "imports": {
+    "organization": {
+      "enabled": true,
+      "groups": ["android", "java", "kotlin", "others"],
+      "blankLinesBetweenGroups": true,
+      "sortWithinGroups": true,
+      "level": "info",
+      "autoFix": true
+    },
+    "unusedImports": {
+      "remove": true,
+      "level": "info",
+      "autoFix": true
+    },
+    "wildcardImports": {
+      "avoid": true,
+      "threshold": 5,
+      "level": "warning"
+    }
+  },
+  "structure": {
+    "memberOrder": {
+      "enabled": true,
+      "order": [
+        "constants",
+        "static_fields", 
+        "fields",
+        "constructors",
+        "methods",
+        "nested_classes"
+      ],
+      "level": "info"
+    },
+    "modifierOrder": {
+      "enabled": true,
+      "order": [
+        "public",
+        "protected", 
+        "private",
+        "abstract",
+        "static",
+        "final"
+      ],
+      "level": "warning",
+      "autoFix": true
+    }
+  }
+}

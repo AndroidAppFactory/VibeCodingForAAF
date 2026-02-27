@@ -1,0 +1,109 @@
+{
+  "version": "1.0.0",
+  "categories": {
+    "architecture": {
+      "enabled": true,
+      "rules": {
+        "layerViolation": {
+          "enabled": true,
+          "level": "warning",
+          "description": "检查分层架构违规",
+          "patterns": [
+            "UI层直接访问数据层",
+            "跨层级依赖调用"
+          ]
+        },
+        "moduleDependency": {
+          "enabled": true,
+          "level": "error",
+          "checkCircularDependency": true,
+          "maxDependencyDepth": 5
+        }
+      }
+    },
+    "performance": {
+      "enabled": true,
+      "rules": {
+        "mainThreadBlocking": {
+          "enabled": true,
+          "level": "error",
+          "patterns": [
+            "\\.execute\\(\\)",
+            "Thread\\.sleep\\(",
+            "synchronized.*long"
+          ],
+          "suggestions": ["使用异步处理", "使用协程"]
+        },
+        "memoryAllocation": {
+          "enabled": true,
+          "level": "warning",
+          "checkLoopAllocation": true,
+          "checkStringConcatenation": true
+        }
+      }
+    },
+    "crashRisk": {
+      "enabled": true,
+      "rules": {
+        "nullPointer": {
+          "enabled": true,
+          "level": "error",
+          "checkNullableAccess": true,
+          "requireNullChecks": true
+        },
+        "exceptionHandling": {
+          "enabled": true,
+          "level": "warning",
+          "requireTryCatch": [
+            "JSON解析",
+            "网络请求", 
+            "文件操作",
+            "数据库操作"
+          ]
+        }
+      }
+    },
+    "memoryLeak": {
+      "enabled": true,
+      "rules": {
+        "contextLeak": {
+          "enabled": true,
+          "level": "error",
+          "patterns": [
+            "static.*Context",
+            "Handler.*Activity",
+            "AsyncTask.*Activity"
+          ]
+        },
+        "listenerLeak": {
+          "enabled": true,
+          "level": "warning",
+          "checkLifecycleManagement": true,
+          "requireUnregister": true
+        }
+      }
+    }
+  },
+  "metrics": {
+    "complexity": {
+      "methodComplexity": {
+        "threshold": 10,
+        "level": "warning"
+      },
+      "classComplexity": {
+        "threshold": 50,
+        "level": "info"
+      }
+    },
+    "size": {
+      "methodLength": {
+        "threshold": 50,
+        "level": "info"
+      },
+      "classLength": {
+        "threshold": 500,
+        "level": "warning"
+      }
+    }
+  }
+}
