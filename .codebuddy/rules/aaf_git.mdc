@@ -14,4 +14,3 @@ provider:
 
 - AAF 核心模块：`LibAAF`、`LibDownload`、`LibNetwork`、`LibFile`、`LibThread`、`LibImage` 等
 - 通用：`gradle`、`demo`、`template`、`release`
-- CodeBuddyForAAF：`rules`、`skills`、`agents`、`init`
