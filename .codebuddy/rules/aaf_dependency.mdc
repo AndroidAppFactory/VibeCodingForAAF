@@ -1,8 +1,8 @@
 ---
-description: AAF 依赖管理规范 - 集中式依赖配置管理规则
-alwaysApply: true
+description: AAF 依赖管理规范 - 当用户提到"添加依赖"、"依赖管理"、"dependencies"、修改 build.gradle 或 dependencies_*.gradle 时加载
+alwaysApply: false
 enabled: true
-updatedAt: 2026-02-26T12:00:00.000Z
+updatedAt: 2026-02-26T17:00:00.000Z
 provider: 
 ---
 

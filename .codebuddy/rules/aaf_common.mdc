@@ -10,42 +10,9 @@ provider:
 
 ## 1. 术语说明
 
-### 1.1 基本术语
-
 - **AAF**: AndroidAPPFactory 的简称，在所有对话中统一使用此缩写
-
-### 1.2 项目类型区分
-
-#### Sample（示例项目）
-- **定位**: 提供给外部开发者的标准示例
-- **项目**（按复杂度排序）: 
-  - **Template-AAF** - 完整示例（AAF 框架完整功能展示）
-  - **Template_Android** - 基础示例（标准 Android 集成）
-  - **Template-Empty** - 最简示例（空壳项目，快速开始）
-- **特点**:
-  - 展示 AAF 框架的最佳实践
-  - 保持最新版本同步
-  - 供外部开发者参考学习
-  - 代码质量高，注释完善
-  - 不直接在这些项目中开发
-- **用途**: 帮助外部开发者快速上手 AAF 框架
-
-#### Demo（演示项目）
-- **定位**: 内部临时开发和验证
-- **项目**: **AAF-Temp** (从 Template-Empty clone 而来)
-- **位置**: CodeBuddyForAAF 项目当前目录
-- **特点**:
-  - 快速验证功能
-  - 原型开发
-  - 内部测试
-  - 不对外发布
-  - 可以随意修改
-- **用途**: AAF 框架开发过程中的功能验证和临时测试
-- **初始化**: 由 init.sh 自动从 Template-Empty clone 并改名
-
-#### 重要区别
-- ✅ **Sample** = 外部示例 = 3个项目 (Template-AAF/Template_Android/Template-Empty) = 需要保持高质量和最新版本
-- ✅ **Demo** = 内部开发 = AAF-Temp = 临时验证功能 = 可以随意修改测试
+- **Sample**（示例项目）: Template-AAF / Template_Android / Template-Empty — 外部开发者参考用，保持高质量和最新版本，不直接在此开发
+- **Demo**（演示项目）: AAF-Temp（从 Template-Empty clone）— 内部临时开发验证，可随意修改
 
 ## 2. 项目结构
 
@@ -114,8 +81,6 @@ provider:
 - 📝 代码注释遵循 AAF 注释规范（参见 `aaf_note.mdc`）
 - 🎯 Demo 开发在 AAF-Temp 项目中进行（参见 `aaf_demo.mdc`）
 - 🔗 依赖管理遵循集中式配置规范（参见 `aaf_dependency.mdc`）
-- 📚 文档生成、同步、更新统一管理（参见 `aaf_doc_management.mdc`）
-- 🔍 发布前执行发布检查规则（参见 `aaf_release_check.mdc`）
 - 🌿 Git 提交规范（参见 `aaf_git.mdc`）
 
 **提示**: 不确定用什么命令？直接说"帮助"或"命令列表"查看所有可用命令！

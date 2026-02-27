@@ -1,8 +1,8 @@
 ---
-description: AAF Demo 开发规范 - Template-Empty 项目的开发、部署和调试指南
-alwaysApply: true
+description: AAF Demo 开发规范 - 当用户操作 AAF-Temp 项目、提到"自动运行"、"demo"、"调试运行"时加载
+alwaysApply: false
 enabled: true
-updatedAt: 2026-02-26T12:00:00.000Z
+updatedAt: 2026-02-26T17:00:00.000Z
 provider: 
 ---
 

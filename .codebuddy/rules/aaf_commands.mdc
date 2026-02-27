@@ -1,6 +1,6 @@
 ---
-description: AAF 命令索引 - AAF 项目专属命令的统一入口
-alwaysApply: true
+description: AAF 命令索引 - 当用户提到"命令列表"、"帮助"、"升级AAF"、"升级sample"、"发布检查"、"文档巡检"、"更新文档"时加载
+alwaysApply: false
 enabled: true
 updatedAt: 2026-02-26T17:00:00.000Z
 provider: 
@@ -112,8 +112,8 @@ provider:
 |-----|------|
 | `aaf_common.mdc` | 通用开发规范（alwaysApply） |
 | `aaf_git.mdc` | AAF Scope 补充（alwaysApply） |
-| `aaf_demo.mdc` | Demo 开发规范（alwaysApply） |
-| `aaf_dependency.mdc` | 依赖管理规范（alwaysApply） |
+| `aaf_demo.mdc` | Demo 开发规范（requested） |
+| `aaf_dependency.mdc` | 依赖管理规范（requested） |
 | `aaf_version.mdc` | 模块版本查找方法 |
 | `aaf_cmd_doc_management.mdc` | 文档管理规则 |
 | `aaf_cmd_doc_inspection.mdc` | 文档巡检规则 |
