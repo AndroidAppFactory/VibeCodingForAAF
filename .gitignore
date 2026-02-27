@@ -76,6 +76,16 @@ SAMPLE_UPGRADE_REPORT.md
 *_error*.md
 
 ######################
+# 代码质量检查（本地配置和报告）
+######################
+.codebuddy/config/quality-check-config.json
+.codebuddy/config/quality-check-history.json
+.codebuddy/reports/
+.codebuddy/docs/
+.codebuddy/scripts/
+.codebuddy/plans/
+
+######################
 # Skill 打包文件
 ######################
 *.zip
