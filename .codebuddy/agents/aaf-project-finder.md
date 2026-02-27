@@ -36,22 +36,9 @@ enabledAutoRun: true
 
 ### 查找顺序
 
-按以下优先级查找每个项目：
+先读取 `{workspace}/.codebuddy/rules/aaf_common.mdc` 中的"项目定位策略"，按其定义的顺序查找。
 
-1. **工作区同级目录**：`{workspace}/../{项目名}`
-2. **父目录同级**：`{workspace}/../../{项目名}`
-3. **工作区内部**：`{workspace}/{项目名}`（如 AAF-Temp）
-
-### 查找方法
-
-```bash
-# 方法 1：直接检查预期路径
-ls -d {workspace}/../AndroidAppFactory 2>/dev/null
-ls -d {workspace}/../../AndroidAppFactory 2>/dev/null
-
-# 方法 2：如果 *.code-workspace 文件存在，从中读取项目路径
-cat {workspace}/*.code-workspace | grep "path"
-```
+对于 AAF-Temp，它位于工作区内部（`{workspace}/AAF-Temp`），优先级最高。
 
 ### 验证项目有效性
 

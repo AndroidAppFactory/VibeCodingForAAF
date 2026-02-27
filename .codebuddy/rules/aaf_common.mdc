@@ -8,79 +8,27 @@ provider:
 
 # AAF 框架通用开发规范
 
-## 1. 术语说明
+## 1. 术语与项目
 
 - **AAF**: AndroidAPPFactory 的简称，在所有对话中统一使用此缩写
-- **Sample**（示例项目）: Template-AAF / Template_Android / Template-Empty — 外部开发者参考用，保持高质量和最新版本，不直接在此开发
+- **核心项目**: AndroidAppFactory（框架源码）、AndroidAppFactory-Doc（框架文档）
+- **Sample**（示例项目）: Template-AAF / Template_Android / Template-Empty — 外部开发者参考用，不直接在此开发
 - **Demo**（演示项目）: AAF-Temp（从 Template-Empty clone）— 内部临时开发验证，可随意修改
 
-## 2. 项目结构
+## 2. 项目定位策略
 
-### 2.1 项目目录布局
+查找 AAF 相关项目时，按以下优先级顺序：
+1. **工作区同级目录**：`{workspace}/../{项目名}`
+2. **父目录同级**：`{workspace}/../../{项目名}`
+3. **工作区内部**：`{workspace}/{项目名}`（如 AAF-Temp）
+4. **workspace 配置**：读取 `*.code-workspace` 文件中的 folders 配置
+5. **以上均未找到**：询问用户提供项目路径，并列出已搜索的路径
 
-| 项目名称 | 说明 | 位置 |
-|---------|------|------|
-| **CodeBuddyForAAF** | 规则和配置管理仓库 | 当前工作区根目录 |
-| **AndroidAppFactory** | AAF 框架核心代码库 | 同级或父目录同级 |
-| **AndroidAppFactory-Doc** | 框架文档和 API 说明 | 同级或父目录同级 |
-| **AAF-Temp** | Demo 开发目录（内部临时开发） | 当前目录 |
-| **Template-Empty** | Sample 示例项目（最简示例） | 同级或父目录同级 |
-| **Template_Android** | Sample 示例项目（基础示例） | 同级或父目录同级 |
-| **Template-AAF** | Sample 示例项目（完整示例） | 同级或父目录同级 |
+## 3. 技术栈
 
-### 2.2 项目定位策略
+- **语言**: Kotlin 优先，Java 兼容旧代码
+- **UI**: Jetpack Compose 优先，传统 View 备选
 
-查找 AAF 相关项目时，按以下顺序：
-1. 优先在当前工作区同级目录查找（如 `./AndroidAppFactory`）
-2. 若同级不存在，到父目录同级查找（如 `../AndroidAppFactory`）
-3. 使用 `find` 命令辅助定位具体文件
+## 4. 任务完成标准
 
-### 2.3 配置文件
-
-- `init.sh` - 项目初始化脚本，用于克隆和配置 AAF 相关项目
-- `.codebuddy/rules/` - 开发规则配置目录
-
-## 3. 技术栈规范
-
-### 3.1 编程语言
-- **首选**: Kotlin
-- **兼容**: Java（用于维护旧代码）
-
-### 3.2 UI 技术选型
-- **首选**: Jetpack Compose（现代声明式 UI）
-- **备选**: 传统 View 系统（特定场景或兼容性需求）
-
-## 4. 开发流程规范
-
-### 4.1 代码质量标准
-- ✅ 代码编写完成后必须通过编译测试
-- ✅ 移除所有未使用的 import 语句
-- ✅ 确保无编译错误和警告
-- ✅ 遵循 Kotlin/Java 代码规范
-
-### 4.2 测试验证
-- 功能必须正常运行
-- 通过基本测试用例
-- 无运行时异常
-
-### 4.3 任务完成标准
-- 代码通过编译 ✓
-- 功能测试通过 ✓
-- 代码质量检查通过 ✓
-- **只有以上三项全部完成才算任务真正完成**
-
-### 4.4 版本控制
-- 所有代码修改必须经过用户明确确认
-- 不得自动提交代码到版本控制系统
-- 提交前需检查 git status，确保提交内容正确
-- 遵循 Commit Message 规范（参见 `aaf_git.mdc`）
-
-## 5. 开发注意事项
-
-- 🎮 **快速命令入口**（参见 `aaf_commands.mdc`）- 所有命令的统一索引
-- 📝 代码注释遵循 AAF 注释规范（参见 `aaf_note.mdc`）
-- 🎯 Demo 开发在 AAF-Temp 项目中进行（参见 `aaf_demo.mdc`）
-- 🔗 依赖管理遵循集中式配置规范（参见 `aaf_dependency.mdc`）
-- 🌿 Git 提交规范（参见 `aaf_git.mdc`）
-
-**提示**: 不确定用什么命令？直接说"帮助"或"命令列表"查看所有可用命令！
+代码通过编译、功能测试通过、代码质量检查通过 — **三项全部完成才算任务真正完成**。
