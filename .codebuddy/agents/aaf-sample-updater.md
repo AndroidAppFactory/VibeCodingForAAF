@@ -140,38 +140,11 @@ APPTest/src/main/java/com/bihe0832/android/test/module/DebugRouterView.kt
 APPTest/src/main/AndroidManifest.xml
 ```
 
-**1. config.gradle** — 参照 Template-AAF 的修改
+**1~3. config.gradle / build.gradle / gradle-wrapper.properties** — 参照 Template-AAF 的修改
 
-**2. build.gradle** — 参照 Template-AAF 的修改
+**4. Application/build.gradle** — AAF 依赖（`common-wrapper` + `lib-router-compiler`）
 
-**3. gradle-wrapper.properties** — 参照 Template-AAF 的修改
-
-**4. Application/build.gradle** — AAF 依赖
-```gradle
-dependencies {
-    // common-wrapper → dependencies_common.gradle → CommonWrapper.version
-    implementation "com.bihe0832.android:common-wrapper:[VERSION]"
-    // lib-router-compiler → dependencies_lib.gradle → RouterCompiler.version
-    kapt "com.bihe0832.android:lib-router-compiler:[VERSION]"
-}
-```
-
-**5. APPTest/build.gradle** — Compose 配置 + AAF 依赖
-```gradle
-buildFeatures {
-    compose = true
-}
-composeOptions {
-    kotlinCompilerExtensionVersion = "[VERSION]"
-}
-
-dependencies {
-    // common-debug → dependencies_common.gradle → CommonDebug.version
-    implementation "com.bihe0832.android:common-debug:[VERSION]"
-    // lib-router-compiler → dependencies_lib.gradle → RouterCompiler.version
-    kapt "com.bihe0832.android:lib-router-compiler:[VERSION]"
-}
-```
+**5. APPTest/build.gradle** — Compose 配置 + AAF 依赖（`common-debug` + `lib-router-compiler`）
 
 **6. 同步 Compose UI 代码** — 从 Template-AAF/APPTest 复制（确保三个项目 UI 代码一致）
 
@@ -189,28 +162,11 @@ App/build.gradle
 App/src/main/AndroidManifest.xml
 ```
 
-**1. config.gradle** — 从 AAF 同步
-```gradle
-compileSdkVersion = [VALUE]
-buildToolsVersion = [VALUE]
-appMinSdkVersion = [VALUE]   // 注意：这里是 appMinSdkVersion，不是 libMinSdkVersion
-targetSdkVersion = [VALUE]
-```
+**1. config.gradle** — 从 AAF 同步（注意：使用 `appMinSdkVersion` 而非 `libMinSdkVersion`）
 
 **2. gradle-wrapper.properties**（如需要）— 参照 Template-AAF 的修改
 
-**3. App/build.gradle** — AAF 依赖
-```gradle
-dependencies {
-    // common-compose-debug → dependencies_common.gradle → CommonDebugCompose.version
-    implementation "com.bihe0832.android:common-compose-debug:[VERSION]"
-    // common-wrapper-min → dependencies_common.gradle → CommonWrapperMin.version
-    implementation "com.bihe0832.android:common-wrapper-min:[VERSION]"
-    // lib-router-compiler → dependencies_lib.gradle → RouterCompiler.version
-    // 注意：可能未发布到最新版，需验证 Maven 可用性
-    kapt "com.bihe0832.android:lib-router-compiler:[VERSION]"
-}
-```
+**3. App/build.gradle** — AAF 依赖（`common-compose-debug` + `common-wrapper-min` + `lib-router-compiler`，注意 `lib-router-compiler` 可能未发布到最新版，需验证 Maven 可用性）
 
 **4. App/src/main/AndroidManifest.xml** — 确保 `android:exported`
 

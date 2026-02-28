@@ -36,7 +36,7 @@ enabledAutoRun: true
 
 ### 查找顺序
 
-先读取 `{workspace}/.codebuddy/rules/aaf_common.mdc` 中的"项目定位策略"，按其定义的顺序查找。
+先读取 `aaf_common` 规则中的"项目定位策略"，按其定义的顺序查找。
 
 对于 AAF-Temp，它位于工作区内部（`{workspace}/AAF-Temp`），优先级最高。
 
