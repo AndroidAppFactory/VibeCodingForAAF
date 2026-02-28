@@ -2,7 +2,11 @@
   "version": "1.0.0",
   "globalIgnores": [
     "deprecated-rule-001",
-    "legacy-naming-convention"
+    "legacy-naming-convention",
+    "lambda-simplification"
+  ],
+  "manualReviewRequired": [
+    "magic-values"
   ],
   "projectIgnores": {
     "AAF-Temp": [
