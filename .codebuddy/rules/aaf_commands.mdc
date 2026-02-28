@@ -1,8 +1,8 @@
 ---
-description: AAF 命令索引 - 当用户提到"命令列表"、"帮助"、"升级AAF"、"升级sample"、"发布检查"、"文档巡检"、"更新文档"时加载
+description: AAF 命令索引 - 当用户提到"命令列表"、"帮助"、"升级AAF"、"升级sample"、"发布检查"、"文档巡检"、"更新文档"、"代码巡检"、"质量检查"、"代码规范检查"、"规范检查"、"代码审查"、"CR"时加载
 alwaysApply: false
 enabled: true
-updatedAt: 2026-02-26T17:00:00.000Z
+updatedAt: 2026-02-28T10:00:00.000Z
 provider: 
 ---
 
@@ -56,11 +56,43 @@ provider:
 
 ---
 
-## 命令分类
+### 5. 代码巡检
+
+**触发关键词**："代码巡检"、"质量检查"
+
+**执行 Agent**: `aaf-code-quality-checker`（编排 Agent: `aaf-style-checker` + `aaf-code-reviewer`）
+
+多项目批量巡检，支持增量检查、自动修复、生成结构化报告。
+
+参数：`--force`（全量）、`--projects`（指定项目）、`--rules`（指定检查类型）、`--auto-fix`（自动修复级别）、`--dry-run`（只检查不修复）
+
+---
+
+### 6. 代码规范检查
+
+**触发关键词**："代码规范检查"、"规范检查"
+
+**执行 Agent**: `aaf-style-checker`
+
+检查代码格式、命名、注释、import 顺序、代码结构，支持自动修复。
+
+---
+
+### 7. 代码审查
+
+**触发关键词**："代码审查"、"CR"
+
+**执行 Agent**: `aaf-code-reviewer`
+
+CR 级深度审查：架构合规、性能问题、Crash 风险、内存泄露、SOLID 原则、AAF 框架优先使用。
+
+---
+
+## 命令速查表
 
 ### 文档相关
 
-| 命令关键词 | 执行规则 | 功能 |
+| 命令关键词 | 执行对象 | 功能 |
 |-----------|---------|------|
 | `更新文档` `同步文档` | `aaf_cmd_doc_management.mdc` → `aaf-doc-generator` Agent | 检测变更并同步文档 |
 | `生成文档` `整理文档` | `aaf_cmd_doc_management.mdc` → `aaf-doc-generator` Agent | 为模块生成/整理文档 |
@@ -68,7 +100,7 @@ provider:
 
 ### 发布相关
 
-| 命令关键词 | 执行规则 | 功能 |
+| 命令关键词 | 执行对象 | 功能 |
 |-----------|---------|------|
 | `发布检查` `准备发布` `release` | `aaf_cmd_release_check.mdc` | 完整发布前检查 |
 | `编译检查` | `aaf_cmd_release_check.mdc` | 仅编译检查 |
@@ -82,68 +114,20 @@ provider:
 | `添加依赖` | `aaf_dependency.mdc` | 依赖管理规范 |
 | `查询版本` `模块版本` | `aaf_version.mdc` | 模块版本查找 |
 
-### 检查相关
+### 代码质量相关
 
-| 命令关键词 | 功能 |
-|-----------|------|
-| `全面检查` | 文档巡检 + 发布检查 + 文档同步 |
-| `快速检查` | 编译 + 版本号检查 |
+| 命令关键词 | 执行对象 | 功能 |
+|-----------|---------|------|
+| `代码巡检` `质量检查` | `aaf-code-quality-checker` Agent | 多项目批量巡检（主控编排） |
+| `代码规范检查` `规范检查` | `aaf-style-checker` Agent | 代码格式+命名+注释检查，支持自动修复 |
+| `代码审查` `CR` | `aaf-code-reviewer` Agent | 深度审查（架构、性能、Crash、内存泄露、SOLID） |
 
----
+### 组合命令
 
-## 组合命令
-
-### 完整发布流程
-"准备发布" → 版本号检查 → 模块完整性检查 → 编译检查 → 文档同步检查 → 生成报告 → 显示发布命令
-
-### 文档维护流程
-"文档维护" → 文档巡检 → 文档同步 → 生成维护报告
-
-### 模块开发完成
-"开发完成" → 编译检查 → 文档同步 → 注释检查 → 生成总结
-
----
-
-## 相关文件
-
-### 规则文件（AAF 专属）
-
-| 文件 | 说明 |
-|-----|------|
-| `aaf_common.mdc` | 通用开发规范（alwaysApply） |
-| `aaf_git.mdc` | AAF Scope 补充（alwaysApply） |
-| `aaf_demo.mdc` | Demo 开发规范（requested） |
-| `aaf_dependency.mdc` | 依赖管理规范（requested） |
-| `aaf_version.mdc` | 模块版本查找方法 |
-| `aaf_cmd_doc_management.mdc` | 文档管理规则 |
-| `aaf_cmd_doc_inspection.mdc` | 文档巡检规则 |
-| `aaf_cmd_release_check.mdc` | 发布前检查规则 |
-| `aaf_cmd_version_upgrade.mdc` | 版本升级规则 |
-| `aaf_cmd_sample_upgrade.mdc` | 示例项目升级规则 |
-
-### Agent 文件
-
-| Agent | 功能 |
-|-------|------|
-| `aaf-project-finder` | 定位 AAF 相关项目位置 |
-| `aaf-config-reader` | 读取 AAF 最新配置和版本信息 |
-| `aaf-sample-updater` | 执行单个 Sample 项目升级 |
-| `aaf-doc-generator` | 分析模块源码，生成/更新文档内容 |
-
-### Skill 文件
-
-| Skill | 触发关键词 | 功能 |
-|-------|-----------|------|
-| `aaf-debug` | "debug AAF 的 XX" | AAF 模块调试助手（增强版） |
-| `aaf-sample-upgrade` | "升级 sample" | Sample 项目批量升级 |
-
-### User 级通用（由 AIConfig 提供）
-
-| 文件 | 说明 |
-|-----|------|
-| `zixie_git.mdc` | Git 提交规范 |
-| `zixie_note.mdc` | 注释规范 |
-| `zixie_cmd_code_update.mdc` | 代码更新 |
-| `zixie_cmd_rules_optimization.mdc` | 规则优化 |
-| `git-commit` Skill | Git 提交助手 |
-| `debug` Skill | 通用调试助手 |
+| 场景 | 说什么 | 执行流程 |
+|-----|-------|---------|
+| 完整发布流程 | "准备发布" | 版本号检查 → 模块完整性检查 → 编译检查 → 文档同步检查 → 生成报告 |
+| 文档维护流程 | "文档维护" | 文档巡检 → 文档同步 → 生成维护报告 |
+| 模块开发完成 | "开发完成" | 编译检查 → 文档同步 → 注释检查 → 生成总结 |
+| 全面检查 | "全面检查" | 文档巡检 + 发布检查 + 文档同步 |
+| 快速检查 | "快速检查" | 编译 + 版本号检查 |
