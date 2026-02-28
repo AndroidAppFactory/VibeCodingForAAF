@@ -3,10 +3,24 @@ description: AAF Sample 项目升级规则 - 自动升级示例项目到最新 A
 alwaysApply: false
 enabled: true
 updatedAt: 2026-02-26T10:00:00.000Z
-provider: 
+provider: zixie（cdn.bihe0832.com）
 ---
 
 # AAF Sample 项目升级规则
+
+## 检查清单（Sample 升级时必须使用）
+
+> **AI 执行 Sample 升级时，必须逐项检查以下清单，禁止自行编造检查项。**
+>
+> **维护提醒**：修改正文中的规则时，必须同步更新此清单。
+
+| # | 检查项 | 必须 | 对应章节 |
+|---|--------|:----:|----------|
+| 1 | 使用 `aaf-project-finder` 定位项目位置 | 是 | 执行架构 步骤 1 |
+| 2 | 使用 `aaf-config-reader` 拉取 AAF 代码并读取配置 | 是 | 执行架构 步骤 2 |
+| 3 | 先升级 Template-AAF，成功后再并发升级其他两个 | 是 | 执行架构 步骤 3~5 |
+| 4 | 生成汇总报告和提交建议 | 是 | 执行架构 步骤 6+7 |
+| 5 | "升级demo"/"升级sample" 都是升级外部示例项目（不是 AAF-Temp） | 是 | 规则说明 |
 
 ## 规则说明
 
@@ -48,10 +62,8 @@ provider:
 |-------|------|
 | `aaf-project-finder` | 定位所有 AAF 相关项目的绝对路径（通用，可被其他 Skill 复用） |
 | `aaf-config-reader` | 拉取 AAF 最新代码 + 读取 SDK 配置、模块版本（只读） |
-| `aaf-sample-updater` | 拉取 Template 最新代码 + 升级单个项目：修改配置、同步依赖和 UI 代码、验证编译 |
+| `aaf-sample-updater` | 拉取 Template 最新代码 + 升级单个项目：修改配置、同步依赖和 UI 代码 + 编译验证 |
 
 ### 升级内容
 
 配置文件、AAF 依赖、Compose UI 代码、Manifest、编译验证 — 详见 Skill。
-
-

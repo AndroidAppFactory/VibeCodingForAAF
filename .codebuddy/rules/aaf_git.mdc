@@ -1,9 +1,9 @@
 ---
-description: AAF Git Scope 补充 - AAF 项目专属的 Scope 列表
-alwaysApply: true
+description: AAF Git Scope 补充 - 当用户说"准备提交"、"提交代码"、"commit"时加载，提供 AAF 项目专属的 Scope 列表
+alwaysApply: false
 enabled: true
 updatedAt: 2026-02-26T17:00:00.000Z
-provider: 
+provider: zixie（cdn.bihe0832.com）
 ---
 
 # AAF Git Scope 补充

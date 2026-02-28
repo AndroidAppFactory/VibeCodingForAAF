@@ -2,11 +2,30 @@
 description: AAF 发布检查规则 - 发布前自动检查编译状态、版本号更新和文档同步
 alwaysApply: false
 enabled: true
-updatedAt: 2026-02-26T12:00:00.000Z
-provider: 
+updatedAt: 2026-02-28T18:00:00.000Z
+provider: zixie（cdn.bihe0832.com）
 ---
 
 # AAF 发布前检查规则
+
+## 检查清单（检查时必须使用）
+
+> **AI 检查时，必须逐项检查以下清单，禁止自行编造检查项。**
+>
+> **维护提醒**：修改正文中的步骤/规则时，必须同步更新此清单。
+
+| # | 检查项 | 必须 | 对应章节 |
+|---|--------|:----:|----------|
+| 1 | `ext.moduleVersionName` 已提升 | 是 | Step 1 |
+| 2 | 依赖配置变更的受影响模块已加入发布列表 | 是 | Step 4 |
+| 3 | 所有修改模块都在 `ext.developModule` 中 | 是 | Step 3 |
+| 4 | AndroidAppFactory 编译通过 | 是 | Step 5 |
+| 5 | 代码已提交，在正确分支上 | 是 | Step 6 |
+| 6 | 功能已测试 | 是 | — |
+| 7 | 文档已更新 | 是 | Step 2 |
+| 8 | 准备创建 Tag | 否 | 版本 Tag 检查 |
+
+---
 
 ## 触发条件
 
@@ -18,101 +37,43 @@ provider:
 
 ### Step 1: 模块版本号检查
 
-```bash
-cd ../AndroidAppFactory
-CURRENT_VERSION=$(grep "moduleVersionName" dependencies.gradle | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
-LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-LATEST_VERSION=$(echo $LATEST_TAG | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
-```
-
-当前版本必须大于上次版本。版本格式：`主版本号.次版本号.修订号`
+从 `dependencies.gradle` 的 `ext.moduleVersionName` 读取当前版本，与最新 `Tag_AAF_*` Tag 对比。当前版本必须大于上次版本。版本格式：`主版本号.次版本号.修订号`。
 
 ### Step 2: 文档同步检查
 
-```bash
-cd ../AndroidAppFactory
-LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-CHANGED_MODULES=$(git diff --name-only $LATEST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base")
-
-cd ../AndroidAppFactory-Doc
-for module in $CHANGED_MODULES; do
-    DOC_FILE=$(find . -name "*.md" -path "*${module:3}*" | head -1)
-    # 检查文档是否有更新
-done
-```
-
-- 文档未更新：提醒运行"更新文档"
-- 找不到文档：提醒运行"生成文档"
+对比最新 Tag 到 HEAD 的变更模块列表，检查 AndroidAppFactory-Doc 中对应文档是否有更新：
+- 文档未更新 → 提醒运行"更新文档"
+- 找不到文档 → 提醒运行"生成文档"
 
 ### Step 3: 修改模块完整性检查
 
-检查所有修改过的模块是否包含在 `ext.developModule` 中：
-
-```bash
-cd ../AndroidAppFactory
-LATEST_TAG=$(git tag -l "Tag_AAF_*" | sort -V | tail -1)
-CHANGED_MODULES=$(git diff --name-only $LATEST_TAG HEAD | cut -d'/' -f1 | sort -u | grep -v "^APP" | grep -v "^Base")
-DEVELOP_MODULES=$(grep "developModule" dependencies.gradle | grep -o "'[^']*'" | tr -d "'" | tr ',' '\n')
-```
-
-排除规则：`APP*` 和 `Base*` 开头的模块不需要包含在发布列表中。
+检查所有修改过的模块是否包含在 `ext.developModule` 中。排除规则：`APP*` 和 `Base*` 开头的模块不需要包含在发布列表中。
 
 ### Step 4: 依赖配置变更检查
 
-当 `dependencies_aaf_config.gradle` 有变更时，需检查所有依赖该配置的模块：
-
-1. 检测配置文件变更：`git diff $LATEST_TAG HEAD -- dependencies_aaf_config.gradle`
-2. 识别变更的依赖 key
-3. 查找直接引用模块：`grep -r "project.androidsupport.<key>" --include="*.gradle" .`
-4. 递归查找间接依赖模块
-
-确保所有受影响模块都在 `ext.developModule` 中。
+当 `dependencies_aaf_config.gradle` 有变更时：
+1. 识别变更的依赖 key
+2. 查找直接引用该 key 的模块
+3. 递归查找间接依赖模块
+4. 确保所有受影响模块都在 `ext.developModule` 中
 
 ### Step 5: 编译检查
 
-```bash
-cd ../AndroidAppFactory
-./gradlew clean assembleDebug
-```
-
-期望：`BUILD SUCCESSFUL`
+执行 `./gradlew clean assembleDebug`，期望 `BUILD SUCCESSFUL`。
 
 ### Step 6: Git 状态检查
 
-```bash
-git status --short
-git branch --show-current
-```
+检查工作区是否干净、是否在正确分支上。
 
 ### Step 7: 生成报告并显示发布命令
 
-```bash
-./gradlew showPublishCommand
-```
+执行 `./gradlew showPublishCommand` 生成发布命令。
 
 ## 版本 Tag 检查
 
-Tag 命名规则：`Tag_AAF_x.y.z`
-
-```bash
-MODULE_VERSION=$(grep "moduleVersionName" dependencies.gradle | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+')
-git tag -l "Tag_AAF_$MODULE_VERSION"
-```
-
+Tag 命名规则：`Tag_AAF_x.y.z`。检查当前版本号对应的 Tag 是否已存在：
 - Tag 不存在 → 正常，待发布后创建
 - Tag 已存在 → 版本号可能未更新
-
-## 检查清单
-
-- [ ] ext.moduleVersionName 已提升
-- [ ] 依赖配置变更的受影响模块已加入发布列表
-- [ ] 所有修改模块都在 ext.developModule 中
-- [ ] AndroidAppFactory 编译通过
-- [ ] 代码已提交
-- [ ] 在正确分支上
-- [ ] 功能已测试
-- [ ] 文档已更新
-- [ ] 准备创建 Tag
 
 ## 常见问题处理
 
