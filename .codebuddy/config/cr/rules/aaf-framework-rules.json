@@ -63,32 +63,5 @@
       "suggestion": "使用AAF LibFile进行文件操作",
       "autoFix": false
     }
-  },
-  "versionCheck": {
-    "enabled": true,
-    "aafVersionSource": "../AndroidAppFactory/dependencies.gradle",
-    "checkFrequency": "daily",
-    "rules": {
-      "outdatedVersion": {
-        "level": "warning",
-        "threshold": "1.0.0",
-        "suggestion": "升级到最新AAF版本"
-      }
-    }
-  },
-  "usageAnalytics": {
-    "enabled": true,
-    "trackUsageRate": true,
-    "generateReports": true,
-    "metrics": {
-      "aafUsageRate": {
-        "target": 0.8,
-        "level": "info"
-      },
-      "thirdPartyDependencies": {
-        "maxCount": 10,
-        "level": "warning"
-      }
-    }
   }
 }

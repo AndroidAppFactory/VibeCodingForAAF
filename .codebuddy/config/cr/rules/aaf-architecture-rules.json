@@ -8,9 +8,10 @@
         "level": "error",
         "description": "所有依赖必须在根目录dependencies_*.gradle中管理",
         "configFiles": [
+          "config.gradle",
           "dependencies.gradle",
-          "dependencies_kotlin.gradle",
-          "dependencies_android.gradle"
+          "dependencies_lib.gradle",
+          "dependencies_common.gradle"
         ],
         "forbiddenLocations": [
           "*/build.gradle",
@@ -35,14 +36,12 @@
     "rules": {
       "aafVersionConsistency": {
         "enabled": true,
-        "level": "error",
-        "description": "确保所有AAF模块使用相同版本",
-        "versionSource": "../AndroidAppFactory/dependencies.gradle"
+        "level": "warning",
+        "description": "检查AAF模块版本是否与框架实际版本一致（注意：不同模块可能有不同版本，这是正常的）"
       },
       "outdatedDependencies": {
         "enabled": true,
         "level": "warning",
-        "checkFrequency": "weekly",
         "autoUpdate": false
       }
     }
@@ -70,18 +69,15 @@
       "gradleVersion": {
         "enabled": true,
         "level": "warning",
-        "minVersion": "7.0.0",
-        "source": "../AndroidAppFactory/gradle/wrapper/gradle-wrapper.properties"
+        "minVersion": "7.0.0"
       },
       "kotlinVersion": {
         "enabled": true,
-        "level": "warning",
-        "source": "../AndroidAppFactory/dependencies_kotlin.gradle"
+        "level": "warning"
       },
       "compileSdkVersion": {
         "enabled": true,
-        "level": "info",
-        "source": "../AndroidAppFactory/dependencies_android.gradle"
+        "level": "info"
       }
     }
   }
