@@ -39,7 +39,7 @@ enabledAutoRun: true
 
 #### 1.1 缩进和空格
 ```kotlin
-// ❌ 错误格式
+// 错误格式
 class UserService{
 private val name:String=""
 fun getData( ){
@@ -49,7 +49,7 @@ doSomething()
 }
 }
 
-// ✅ 正确格式
+// 正确格式
 class UserService {
     private val name: String = ""
     
@@ -63,7 +63,7 @@ class UserService {
 
 #### 1.2 换行和空行
 ```kotlin
-// ❌ 错误：缺少空行分隔
+// 错误：缺少空行分隔
 class UserService {
     private val repository = UserRepository()
     fun loadUser(): User {
@@ -74,7 +74,7 @@ class UserService {
     }
 }
 
-// ✅ 正确：适当的空行分隔
+// 正确：适当的空行分隔
 class UserService {
     private val repository = UserRepository()
     
@@ -90,12 +90,12 @@ class UserService {
 
 #### 1.3 行长度限制
 ```kotlin
-// ❌ 错误：行过长
+// 错误：行过长
 fun processUserData(userId: String, userName: String, userEmail: String, userPhone: String, userAddress: String): UserResult {
     return UserResult(userId, userName, userEmail, userPhone, userAddress)
 }
 
-// ✅ 正确：适当换行
+// 正确：适当换行
 fun processUserData(
     userId: String,
     userName: String,
@@ -117,12 +117,12 @@ fun processUserData(
 
 #### 2.1 类名规范
 ```kotlin
-// ❌ 错误命名
+// 错误命名
 class userservice { }           // 应该使用PascalCase
 class User_Service { }          // 不应该使用下划线
 class IUserService { }          // 接口不需要I前缀
 
-// ✅ 正确命名
+// 正确命名
 class UserService { }           // PascalCase
 interface UserRepository { }    // 接口使用PascalCase
 abstract class BaseService { }  // 抽象类使用PascalCase
@@ -130,12 +130,12 @@ abstract class BaseService { }  // 抽象类使用PascalCase
 
 #### 2.2 方法名规范
 ```kotlin
-// ❌ 错误命名
+// 错误命名
 fun GetUserData() { }           // 应该使用camelCase
 fun get_user_data() { }         // 不应该使用下划线
 fun getUserdata() { }           // 缺少单词分隔
 
-// ✅ 正确命名
+// 正确命名
 fun getUserData() { }           // camelCase
 fun loadUserProfile() { }       // 动词开头，描述性
 fun isUserValid(): Boolean { }  // 布尔方法使用is/has/can前缀
@@ -143,12 +143,12 @@ fun isUserValid(): Boolean { }  // 布尔方法使用is/has/can前缀
 
 #### 2.3 变量名规范
 ```kotlin
-// ❌ 错误命名
+// 错误命名
 val UserName = "John"           // 应该使用camelCase
 val user_name = "John"          // 不应该使用下划线
 val n = "John"                  // 变量名太短，不够描述性
 
-// ✅ 正确命名
+// 正确命名
 val userName = "John"           // camelCase
 val userEmail = "john@example.com"
 private val _isLoading = false  // 私有属性可以使用下划线前缀
@@ -156,11 +156,11 @@ private val _isLoading = false  // 私有属性可以使用下划线前缀
 
 #### 2.4 常量命名规范
 ```kotlin
-// ❌ 错误命名
+// 错误命名
 const val maxCount = 100        // 应该使用UPPER_SNAKE_CASE
 const val Max_Count = 100       // 混合格式错误
 
-// ✅ 正确命名
+// 正确命名
 const val MAX_COUNT = 100       // UPPER_SNAKE_CASE
 const val DEFAULT_TIMEOUT = 5000
 const val API_BASE_URL = "https://api.example.com"
@@ -170,12 +170,12 @@ const val API_BASE_URL = "https://api.example.com"
 
 #### 3.1 文件头注释
 ```kotlin
-// ❌ 缺少文件头注释
+// 错误：缺少文件头注释
 class UserService {
     // ...
 }
 
-// ✅ 完整的文件头注释
+// 正确：完整的文件头注释
 /**
  * Created by zixie on 2024-02-27
  * 
@@ -191,12 +191,12 @@ class UserService {
 
 #### 3.2 类和接口注释
 ```kotlin
-// ❌ 缺少类注释
+// 错误：缺少类注释
 class UserRepository {
     // ...
 }
 
-// ✅ 完整的类注释
+// 正确：完整的类注释
 /**
  * 用户数据仓库
  * 
@@ -213,12 +213,12 @@ class UserRepository(private val database: UserDatabase) {
 
 #### 3.3 方法注释
 ```kotlin
-// ❌ 缺少方法注释或注释不完整
+// 错误：缺少方法注释或注释不完整
 fun getUserById(id: String): User? {
     return database.userDao().findById(id)
 }
 
-// ✅ 完整的方法注释
+// 正确：完整的方法注释
 /**
  * 根据用户ID获取用户信息
  * 
@@ -238,13 +238,13 @@ fun getUserById(id: String): User? {
 
 #### 4.1 导入顺序
 ```kotlin
-// ❌ 错误：导入顺序混乱
+// 错误：导入顺序混乱
 import java.util.List
 import android.content.Context
 import com.example.UserService
 import kotlin.collections.ArrayList
 
-// ✅ 正确：按规范顺序导入
+// 正确：按规范顺序导入
 import android.content.Context
 
 import java.util.List
@@ -255,7 +255,7 @@ import com.example.UserService
 
 #### 4.2 未使用导入检查
 ```kotlin
-// ❌ 错误：存在未使用的导入
+// 错误：存在未使用的导入
 import android.content.Context
 import java.util.Date        // 未使用
 import kotlin.math.PI        // 未使用
@@ -266,7 +266,7 @@ class UserService {
     }
 }
 
-// ✅ 正确：移除未使用的导入
+// 正确：移除未使用的导入
 import android.content.Context
 
 class UserService {
@@ -280,7 +280,7 @@ class UserService {
 
 #### 5.1 类成员顺序
 ```kotlin
-// ❌ 错误：成员顺序混乱
+// 错误：成员顺序混乱
 class UserService {
     fun saveUser(user: User) { }
     
@@ -293,7 +293,7 @@ class UserService {
     fun loadUser(): User { }
 }
 
-// ✅ 正确：按规范顺序组织
+// 正确：按规范顺序组织
 class UserService {
     companion object {
         const val TAG = "UserService"
@@ -309,11 +309,11 @@ class UserService {
 
 #### 5.2 访问修饰符顺序
 ```kotlin
-// ❌ 错误：修饰符顺序错误
+// 错误：修饰符顺序错误
 final public class UserService { }
 static private val TAG = "UserService"
 
-// ✅ 正确：按规范顺序
+// 正确：按规范顺序
 public final class UserService { }
 private static val TAG = "UserService"
 ```
@@ -327,7 +327,7 @@ private static val TAG = "UserService"
    # 检查文件编码是否为UTF-8
    file_encoding=$(file -bi "$file" | grep -o 'charset=[^;]*' | cut -d= -f2)
    if [ "$file_encoding" != "utf-8" ]; then
-       echo "❌ 文件编码错误：$file (当前: $file_encoding, 期望: utf-8)"
+       echo "[错误] 文件编码错误：$file (当前: $file_encoding, 期望: utf-8)"
    fi
    ```
 
@@ -336,7 +336,7 @@ private static val TAG = "UserService"
    # 检查文件是否过大（超过1000行建议拆分）
    line_count=$(wc -l < "$file")
    if [ "$line_count" -gt 1000 ]; then
-       echo "⚠️ 文件过大：$file ($line_count 行，建议拆分)"
+       echo "[警告] 文件过大：$file ($line_count 行，建议拆分)"
    fi
    ```
 
@@ -346,12 +346,12 @@ private static val TAG = "UserService"
    ```bash
    # 检查缩进是否使用4个空格
    if grep -q $'\t' "$file"; then
-       echo "❌ 使用了Tab字符：$file (应使用4个空格)"
+       echo "[错误] 使用了Tab字符：$file (应使用4个空格)"
    fi
    
    # 检查行尾空格
    if grep -q ' $' "$file"; then
-       echo "⚠️ 存在行尾空格：$file"
+       echo "[警告] 存在行尾空格：$file"
    fi
    ```
 
@@ -359,7 +359,7 @@ private static val TAG = "UserService"
    ```bash
    # 检查换行符类型（应为LF）
    if file "$file" | grep -q "CRLF"; then
-       echo "⚠️ 使用了CRLF换行符：$file (应使用LF)"
+       echo "[警告] 使用了CRLF换行符：$file (应使用LF)"
    fi
    ```
 
@@ -368,15 +368,15 @@ private static val TAG = "UserService"
 5. **类名检查**
    ```bash
    # 检查类名是否符合PascalCase
-   grep -n "^class [a-z]" "$file" && echo "❌ 类名应使用PascalCase：$file"
-   grep -n "^class .*_" "$file" && echo "❌ 类名不应包含下划线：$file"
+   grep -n "^class [a-z]" "$file" && echo "[错误] 类名应使用PascalCase：$file"
+   grep -n "^class .*_" "$file" && echo "[错误] 类名不应包含下划线：$file"
    ```
 
 6. **方法名检查**
    ```bash
    # 检查方法名是否符合camelCase
-   grep -n "fun [A-Z]" "$file" && echo "❌ 方法名应使用camelCase：$file"
-   grep -n "fun .*_.*(" "$file" && echo "❌ 方法名不应包含下划线：$file"
+   grep -n "fun [A-Z]" "$file" && echo "[错误] 方法名应使用camelCase：$file"
+   grep -n "fun .*_.*(" "$file" && echo "[错误] 方法名不应包含下划线：$file"
    ```
 
 ### 阶段4：注释规范检查
@@ -385,7 +385,7 @@ private static val TAG = "UserService"
    ```bash
    # 检查是否有文件头注释
    if ! head -10 "$file" | grep -q "Created by\|@author"; then
-       echo "❌ 缺少文件头注释：$file"
+       echo "[错误] 缺少文件头注释：$file"
    fi
    ```
 
@@ -394,7 +394,7 @@ private static val TAG = "UserService"
    # 检查公共方法是否有文档注释
    grep -B5 -A1 "^[[:space:]]*fun [^_]" "$file" | \
    grep -B5 "^[[:space:]]*fun" | \
-   grep -q "/\*\*" || echo "⚠️ 公共方法缺少文档注释：$file"
+   grep -q "/\*\*" || echo "[警告] 公共方法缺少文档注释：$file"
    ```
 
 ## 自动修复功能
@@ -630,13 +630,13 @@ other_imports=$(grep "^import " "$file" | grep -v "^import \(android\|java\|kotl
 ```markdown
 # 代码规范检查报告 - {项目名}
 
-## 📊 检查统计
+## 检查统计
 - 检查文件：{文件数量}个
 - 发现问题：{问题总数}个
 - 自动修复：{修复数量}个
 - 需要手动处理：{待处理数量}个
 
-## 🔧 自动修复摘要
+## 自动修复摘要
 ### 格式问题（{数量}个）
 - 缩进修复：{数量}处
 - 空格修复：{数量}处
@@ -650,7 +650,7 @@ other_imports=$(grep "^import " "$file" | grep -v "^import \(android\|java\|kotl
 - 添加文件头注释：{数量}个
 - 添加方法注释：{数量}个
 
-## ⚠️ 需要手动处理的问题
+## 需要手动处理的问题
 
 ### 命名规范问题
 {命名问题列表}
@@ -658,12 +658,12 @@ other_imports=$(grep "^import " "$file" | grep -v "^import \(android\|java\|kotl
 ### 结构问题
 {结构问题列表}
 
-## 📈 代码质量指标
+## 代码质量指标
 - 规范符合率：{百分比}%
 - 注释覆盖率：{百分比}%
 - 格式一致性：{百分比}%
 
-## 💡 改进建议
+## 改进建议
 1. **命名规范**：{具体建议}
 2. **代码结构**：{具体建议}
 3. **注释完善**：{具体建议}

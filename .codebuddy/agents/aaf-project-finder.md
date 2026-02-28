@@ -56,12 +56,12 @@ enabledAutoRun: true
 
 | 项目 | 路径 | 状态 |
 |------|------|------|
-| AndroidAppFactory | /abs/path/to/AndroidAppFactory | ✅ 找到 |
-| AndroidAppFactory-Doc | /abs/path/to/AndroidAppFactory-Doc | ✅ 找到 |
-| Template-AAF | /abs/path/to/Template-AAF | ✅ 找到 |
-| Template_Android | /abs/path/to/Template_Android | ✅ 找到 |
-| Template-Empty | /abs/path/to/Template-Empty | ✅ 找到 |
-| AAF-Temp | /abs/path/to/AAF-Temp | ✅ 找到 |
+| AndroidAppFactory | /abs/path/to/AndroidAppFactory | 已找到 |
+| AndroidAppFactory-Doc | /abs/path/to/AndroidAppFactory-Doc | 已找到 |
+| Template-AAF | /abs/path/to/Template-AAF | 已找到 |
+| Template_Android | /abs/path/to/Template_Android | 已找到 |
+| Template-Empty | /abs/path/to/Template-Empty | 已找到 |
+| AAF-Temp | /abs/path/to/AAF-Temp | 已找到 |
 
 ## 未找到的项目
 
@@ -72,7 +72,7 @@ enabledAutoRun: true
 
 **如果调用者指定了某个项目为"必须找到"但未找到，在返回结果中明确标注错误**：
 ```
-❌ 错误：必须找到的项目 [项目名] 未找到！
+错误：必须找到的项目 [项目名] 未找到！
 已搜索路径：path1, path2, path3
 ```
 

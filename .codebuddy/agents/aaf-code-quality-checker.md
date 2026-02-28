@@ -54,7 +54,7 @@ enabledAutoRun: true
    # 获取当前工作区路径
    WORKSPACE_PATH="/Volumes/Document/Documents/github/CodeBuddyForAAF"
    
-   echo "🔍 开始发现AAF相关项目..."
+   echo "开始发现AAF相关项目..."
    
    # 使用task调用aaf-project-finder
    PROJECT_FINDER_RESULT=$(task aaf-project-finder "请查找工作区中所有AAF相关项目：
@@ -97,7 +97,7 @@ enabledAutoRun: true
    
    # 解析项目发现结果
    if [ $? -eq 0 ]; then
-       echo "✅ 项目发现完成"
+       echo "[完成] 项目发现完成"
        
        # 提取有效项目列表
        VALID_PROJECTS=$(echo "$PROJECT_FINDER_RESULT" | jq -r '.found_projects[] | select(.valid == true) | .path')
@@ -110,7 +110,7 @@ enabledAutoRun: true
            EXISTS=$(jq ".projects[] | select(.name==\"$project_name\")" "$CONFIG_FILE")
            
            if [ -z "$EXISTS" ]; then
-               echo "➕ 添加新项目：$project_name"
+               echo "[新增] 添加新项目：$project_name"
                
                # 添加项目到配置
                jq ".projects += [{
@@ -130,7 +130,7 @@ enabledAutoRun: true
                }]" "$CONFIG_FILE" > "$CONFIG_FILE.tmp"
                mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
            else
-               echo "✅ 项目已存在：$project_name"
+               echo "[已存在] 项目已存在：$project_name"
                
                # 更新项目路径（可能有变化）
                jq "(.projects[] | select(.name==\"$project_name\") | .path) = \"$project_path\"" "$CONFIG_FILE" > "$CONFIG_FILE.tmp"
@@ -142,9 +142,9 @@ enabledAutoRun: true
        declare -A PROJECT_CHANGES
        PROJECTS=($(echo "$VALID_PROJECTS" | tr '\n' ' '))
        
-       echo "📋 发现 ${#PROJECTS[@]} 个有效项目：$(printf '%s ' "${PROJECTS[@]}")"
+       echo "发现 ${#PROJECTS[@]} 个有效项目：$(printf '%s ' "${PROJECTS[@]}")"
    else
-       echo "❌ 项目发现失败，使用配置文件中的项目列表"
+       echo "[错误] 项目发现失败，使用配置文件中的项目列表"
        
        # 从配置文件读取项目列表
        PROJECTS=($(jq -r '.projects[] | select(.enabled == true) | .path' "$CONFIG_FILE" | tr '\n' ' '))
@@ -167,7 +167,7 @@ enabledAutoRun: true
        
        # 检查Git状态
        if [ ! -d ".git" ]; then
-           echo "⚠️ $project 不是Git仓库，跳过增量检查"
+           echo "[警告] $project 不是Git仓库，跳过增量检查"
            continue
        fi
        
@@ -176,7 +176,7 @@ enabledAutoRun: true
        
        if [ -n "$BASELINE_HASH" ]; then
            # 有基准commit：使用 git diff 获取基准之后的所有变更
-           echo "📌 $PROJECT_NAME 使用CR基准: ${BASELINE_HASH:0:8}..."
+           echo "[基准] $PROJECT_NAME 使用CR基准: ${BASELINE_HASH:0:8}..."
            
            # 基准commit之后的已提交变更
            COMMITTED_CHANGES=$(git diff --name-only "$BASELINE_HASH" HEAD 2>/dev/null | grep -E '\.(kt|java)$')
@@ -191,7 +191,7 @@ enabledAutoRun: true
            STAGED_CHANGES=""
        else
            # 首次检查且无基准：仅检查未提交的变更
-           echo "⚠️ $PROJECT_NAME 无CR基准且首次检查，仅检查未提交变更"
+           echo "[警告] $PROJECT_NAME 无CR基准且首次检查，仅检查未提交变更"
            COMMITTED_CHANGES=""
            UNCOMMITTED_CHANGES=$(git diff --name-only | grep -E '\.(kt|java)$')
            STAGED_CHANGES=$(git diff --cached --name-only | grep -E '\.(kt|java)$')
@@ -202,11 +202,11 @@ enabledAutoRun: true
        
        # 如果没有变更，跳过该项目
        if [ -z "$ALL_CHANGES" ]; then
-           echo "✅ $project 无代码变更，跳过检查"
+           echo "[跳过] $project 无代码变更，跳过检查"
            continue
        fi
        
-       echo "📝 $project 发现 $(echo "$ALL_CHANGES" | wc -l) 个变更文件"
+       echo "$project 发现 $(echo "$ALL_CHANGES" | wc -l) 个变更文件"
        
        # 记录项目的变更文件
        PROJECT_CHANGES["$project"]="$ALL_CHANGES"
@@ -232,7 +232,7 @@ enabledAutoRun: true
                if [ "$FILE_HASH" != "$CACHED_HASH" ]; then
                    FILTERED_CHANGES="$FILTERED_CHANGES\n$file"
                else
-                   echo "⚡ $file 内容未变更，跳过检查"
+                   echo "[缓存命中] $file 内容未变更，跳过检查"
                fi
            fi
        done
@@ -263,7 +263,7 @@ enabledAutoRun: true
        # 检查项目是否启用
        ENABLED=$(echo "$PROJECT_CONFIG" | jq -r '.enabled // true')
        if [ "$ENABLED" != "true" ]; then
-           echo "⏭️ $PROJECT_NAME 已禁用检查，跳过"
+           echo "[跳过] $PROJECT_NAME 已禁用检查，跳过"
            continue
        fi
        
@@ -276,7 +276,7 @@ enabledAutoRun: true
        # 启动代码规范检查任务
        if [ "$(echo "$CHECK_TYPES" | jq -r '.codeStyle // true')" = "true" ]; then
            ((TASK_COUNT++))
-           echo "🚀 启动任务 $TASK_COUNT: $PROJECT_NAME 代码规范检查"
+           echo "[启动] 启动任务 $TASK_COUNT: $PROJECT_NAME 代码规范检查"
            
            # 使用task工具启动aaf-style-checker
            task aaf-style-checker "请检查项目 $project 的代码规范问题：
@@ -299,7 +299,7 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
        # 启动代码审查检查任务
        if [ "$(echo "$CHECK_TYPES" | jq -r '.codeReview // true')" = "true" ]; then
            ((TASK_COUNT++))
-           echo "🚀 启动任务 $TASK_COUNT: $PROJECT_NAME 代码审查检查"
+           echo "[启动] 启动任务 $TASK_COUNT: $PROJECT_NAME 代码审查检查"
            
            # 使用task工具启动aaf-code-reviewer
            task aaf-code-reviewer "请检查项目 $project 的代码质量问题：
@@ -328,20 +328,20 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
        
        # 控制并发数量
        if [ $((TASK_COUNT % MAX_CONCURRENT)) -eq 0 ]; then
-           echo "⏳ 等待当前批次任务完成..."
+           echo "[等待] 等待当前批次任务完成..."
            wait
        fi
    done
    
    # 等待所有任务完成
-   echo "⏳ 等待所有检查任务完成..."
+   echo "[等待] 等待所有检查任务完成..."
    wait
    ```
 
 5. **任务结果收集**
    ```bash
    # 收集所有Agent的检查结果
-   echo "📊 收集检查结果..."
+   echo "收集检查结果..."
    
    TOTAL_ISSUES=0
    TOTAL_FIXED=0
@@ -390,11 +390,11 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
    - 发现问题：{问题总数}个
    
    ## 自动修复结果
-   ### ✅ 已修复（{数量}个）
+   ### 已修复（{数量}个）
    - {项目名}：{问题描述}
    
    ## 需要确认的问题
-   ### ❌ 待处理（{数量}个）
+   ### 待处理（{数量}个）
    - {项目名}：{问题描述} - {修复建议}
    
    ## 项目详情
@@ -410,7 +410,7 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
    ```bash
    # 检查是否有自动修复的文件（只有修复过才需要验证编译）
    if [ "$TOTAL_FIXED" -gt 0 ]; then
-       echo "🔨 自动修复完成，开始编译验证..."
+       echo "自动修复完成，开始编译验证..."
        
        BUILD_ALL_PASSED=true
        BUILD_FAILED_PROJECTS=()
@@ -419,7 +419,7 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
            PROJECT_NAME=$(basename "$project")
            cd "$project"
            
-           echo "🔨 编译验证项目：$PROJECT_NAME ..."
+           echo "编译验证项目：$PROJECT_NAME ..."
            
            # 根据项目类型选择编译命令
            if [ -f "gradlew" ]; then
@@ -429,7 +429,7 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
                # Gradle 子项目（如AAF-Temp中的App模块）
                BUILD_CMD="./gradlew :App:assembleDebug --no-daemon 2>&1"
            else
-               echo "⚠️ $PROJECT_NAME：未识别的构建系统，跳过编译验证"
+               echo "[警告] $PROJECT_NAME：未识别的构建系统，跳过编译验证"
                continue
            fi
            
@@ -438,14 +438,14 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
            BUILD_EXIT_CODE=$?
            
            if [ $BUILD_EXIT_CODE -eq 0 ]; then
-               echo "✅ $PROJECT_NAME 编译通过"
+               echo "[通过] $PROJECT_NAME 编译通过"
            else
-               echo "❌ $PROJECT_NAME 编译失败！"
+               echo "[失败] $PROJECT_NAME 编译失败！"
                BUILD_ALL_PASSED=false
                BUILD_FAILED_PROJECTS+=("$project")
                
                # 提取关键错误信息
-               echo "📋 编译错误摘要："
+               echo "编译错误摘要："
                echo "$BUILD_OUTPUT" | grep -E "(error:|FAILURE|BUILD FAILED)" | head -20
            fi
        done
@@ -453,33 +453,33 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
        # 编译失败处理
        if [ "$BUILD_ALL_PASSED" = false ]; then
            echo ""
-           echo "❌ ========================================="
-           echo "❌  编译验证失败，阻断提交流程"
-           echo "❌ ========================================="
+           echo "========================================="
+           echo "  编译验证失败，阻断提交流程"
+           echo "========================================="
            echo ""
            echo "以下项目编译失败："
            for failed_project in "${BUILD_FAILED_PROJECTS[@]}"; do
                echo "  - $(basename "$failed_project")"
            done
            echo ""
-           echo "🔄 尝试回滚自动修复的变更..."
+           echo "[回滚] 尝试回滚自动修复的变更..."
            
            # 回滚编译失败项目的自动修复
            for failed_project in "${BUILD_FAILED_PROJECTS[@]}"; do
                cd "$failed_project"
                PROJECT_NAME=$(basename "$failed_project")
                
-               echo "🔄 回滚项目 $PROJECT_NAME 的自动修复..."
+               echo "[回滚] 回滚项目 $PROJECT_NAME 的自动修复..."
                
                # 使用 git checkout 回滚修改的文件
                git checkout -- .
                
-               echo "✅ $PROJECT_NAME 已回滚"
+               echo "[完成] $PROJECT_NAME 已回滚"
            done
            
            echo ""
-           echo "📋 自动修复已回滚，原始问题仍然存在。"
-           echo "💡 请手动修复以下问题后重新运行质量检查："
+           echo "自动修复已回滚，原始问题仍然存在。"
+           echo "请手动修复以下问题后重新运行质量检查："
            echo ""
            
            # 显示原始检查发现的问题（不包含自动修复部分）
@@ -490,18 +490,18 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
            COMPILE_VERIFICATION_FAILED=true
            
            echo ""
-           echo "⚠️ 编译验证失败，已阻断提交流程。"
-           echo "💡 如果确认不需要编译验证，请明确告知：'不用管编译问题'"
+           echo "[警告] 编译验证失败，已阻断提交流程。"
+           echo "如果确认不需要编译验证，请明确告知：'不用管编译问题'"
        else
            echo ""
-           echo "✅ ========================================="
-           echo "✅  所有项目编译验证通过"
-           echo "✅ ========================================="
+           echo "========================================="
+           echo "  所有项目编译验证通过"
+           echo "========================================="
            echo ""
            COMPILE_VERIFICATION_FAILED=false
        fi
    else
-       echo "ℹ️ 无自动修复，跳过编译验证"
+       echo "[信息] 无自动修复，跳过编译验证"
        COMPILE_VERIFICATION_FAILED=false
    fi
    ```
@@ -513,7 +513,7 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
 8. **提交决策逻辑**
    ```bash
    # 分析检查结果，决定是否可以自动提交
-   echo "🤔 分析检查结果，决定提交策略..."
+   echo "分析检查结果，决定提交策略..."
    
    # 统计各类问题数量
    ERROR_COUNT=$(jq '[.[] | .issues[] | select(.level == "error")] | length' <<< "$ALL_RESULTS")
@@ -523,7 +523,7 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
    TOTAL_FIXED=$(jq '[.[] | .autoFixed[]] | length' <<< "$ALL_RESULTS")
    NEEDS_CONFIRMATION=$(jq '[.[] | .issues[] | select(.autoFixable == false)] | length' <<< "$ALL_RESULTS")
    
-   echo "📊 问题统计："
+   echo "问题统计："
    echo "  - Error: $ERROR_COUNT 个"
    echo "  - Warning: $WARNING_COUNT 个" 
    echo "  - Info: $INFO_COUNT 个"
@@ -532,16 +532,16 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
    
    # 提交决策（必须同时满足：无待确认问题 + 编译验证通过）
    if [ "$COMPILE_VERIFICATION_FAILED" = true ]; then
-       echo "❌ 编译验证失败，阻断提交流程"
+       echo "[错误] 编译验证失败，阻断提交流程"
        SHOULD_PREPARE_COMMIT=false
    elif [ "$NEEDS_CONFIRMATION" -eq 0 ] && [ "$TOTAL_FIXED" -gt 0 ]; then
-       echo "✅ 所有问题已自动修复且编译通过，准备提交流程"
+       echo "[通过] 所有问题已自动修复且编译通过，准备提交流程"
        SHOULD_PREPARE_COMMIT=true
    elif [ "$NEEDS_CONFIRMATION" -eq 0 ] && [ "$TOTAL_FIXED" -eq 0 ]; then
-       echo "ℹ️ 未发现需要修复的问题，无需提交"
+       echo "[信息] 未发现需要修复的问题，无需提交"
        SHOULD_PREPARE_COMMIT=false
    else
-       echo "⚠️ 存在 $NEEDS_CONFIRMATION 个需要确认的问题，暂不提交"
+       echo "[警告] 存在 $NEEDS_CONFIRMATION 个需要确认的问题，暂不提交"
        SHOULD_PREPARE_COMMIT=false
    fi
    ```
@@ -549,7 +549,7 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
 9. **Git提交准备**
    ```bash
    if [ "$SHOULD_PREPARE_COMMIT" = true ]; then
-       echo "🚀 启动Git提交准备流程..."
+       echo "启动Git提交准备流程..."
        
        # 收集所有修改的项目
        MODIFIED_PROJECTS=()
@@ -558,23 +558,23 @@ $(echo "${PROJECT_CHANGES[$project]}" | sed 's/^/- /')
            
            # 检查是否有实际的文件修改
            if git diff --quiet && git diff --cached --quiet; then
-               echo "📝 $project: 无文件修改"
+               echo "$project: 无文件修改"
            else
-               echo "📝 $project: 发现文件修改"
+               echo "$project: 发现文件修改"
                MODIFIED_PROJECTS+=("$project")
            fi
        done
        
        if [ ${#MODIFIED_PROJECTS[@]} -eq 0 ]; then
-           echo "ℹ️ 所有项目都无文件修改，跳过提交"
+           echo "[信息] 所有项目都无文件修改，跳过提交"
        else
-           echo "📋 需要提交的项目：${MODIFIED_PROJECTS[*]}"
+           echo "需要提交的项目：${MODIFIED_PROJECTS[*]}"
            
            # 为每个修改的项目调用git-commit agent
            for project in "${MODIFIED_PROJECTS[@]}"; do
                PROJECT_NAME=$(basename "$project")
                
-               echo "🔄 为项目 $PROJECT_NAME 准备提交..."
+               echo "为项目 $PROJECT_NAME 准备提交..."
                
                # 使用task调用git-commit agent
                task git-commit "请为项目 $project 准备Git提交：
@@ -607,17 +607,17 @@ $(jq -r ".[] | select(.project == \"$PROJECT_NAME\") | .autoFixed[] | \"- \" + .
            # 等待所有提交准备任务完成
            wait
            
-           echo "✅ 所有项目的提交准备完成"
-           echo "💡 请review上述提交信息，确认无误后授权执行提交"
+           echo "[完成] 所有项目的提交准备完成"
+           echo "请review上述提交信息，确认无误后授权执行提交"
        fi
    else
-       echo "ℹ️ 根据检查结果，暂不触发提交流程"
+       echo "[信息] 根据检查结果，暂不触发提交流程"
        
        if [ "$NEEDS_CONFIRMATION" -gt 0 ]; then
-           echo "📋 待处理问题："
+           echo "待处理问题："
            jq -r '.[] | .issues[] | select(.autoFixable == false) | "- " + .file + ":" + (.line | tostring) + " " + .message' <<< "$ALL_RESULTS"
            echo ""
-           echo "💡 处理完上述问题后，可重新运行质量检查"
+           echo "处理完上述问题后，可重新运行质量检查"
        fi
    fi
    ```
@@ -723,7 +723,7 @@ $(jq -r ".[] | select(.project == \"$PROJECT_NAME\") | .autoFixed[] | \"- \" + .
 ### 项目发现失败
 ```bash
 if [ ! -d "$PROJECT_PATH" ]; then
-    echo "❌ 项目路径不存在：$PROJECT_PATH"
+    echo "[错误] 项目路径不存在：$PROJECT_PATH"
     continue  # 跳过该项目，继续检查其他项目
 fi
 ```
@@ -732,7 +732,7 @@ fi
 ```bash
 # 单个Agent失败不影响整体流程
 if [ "$AGENT_EXIT_CODE" -ne 0 ]; then
-    echo "⚠️ Agent执行失败：$AGENT_NAME，跳过该检查项"
+    echo "[警告] Agent执行失败：$AGENT_NAME，跳过该检查项"
     # 记录错误但继续执行
 fi
 ```
@@ -741,7 +741,7 @@ fi
 ```bash
 # 配置文件备份和恢复
 if ! jq . "$CONFIG_FILE" >/dev/null 2>&1; then
-    echo "⚠️ 配置文件损坏，使用默认配置"
+    echo "[警告] 配置文件损坏，使用默认配置"
     cp "$CONFIG_FILE.backup" "$CONFIG_FILE" 2>/dev/null || create_default_config
 fi
 ```
@@ -767,48 +767,48 @@ fi
 
 ### 成功输出
 ```markdown
-✅ AAF代码质量检查完成
+AAF代码质量检查完成
 
-📊 **检查统计**
+**检查统计**
 - 检查项目：{项目数量}个
 - 变更文件：{文件数量}个  
 - 发现问题：{问题总数}个
 - 自动修复：{修复数量}个
 - 待确认：{待确认数量}个
 
-🔨 **编译验证**
+**编译验证**
 - 验证状态：{通过/失败/跳过}
 - 验证项目：{项目列表}
 
-🔧 **自动修复摘要**
+**自动修复摘要**
 {按项目分组显示修复内容}
 
-⚠️ **待确认问题**
+**待确认问题**
 {按项目分组显示需要人工处理的问题}
 
-📝 **详细报告**
+**详细报告**
 报告已保存到：.codebuddy/reports/quality-check-{时间戳}.md
 
-💡 **下一步操作**
+**下一步操作**
 {根据检查结果提供具体的操作建议}
 ```
 
 ### 编译失败输出
 ```markdown
-❌ AAF代码质量检查 - 编译验证失败
+AAF代码质量检查 - 编译验证失败
 
-🔨 **编译验证结果**
+**编译验证结果**
 - 编译失败项目：{项目列表}
 - 已回滚项目：{回滚项目列表}
 
-📋 **编译错误摘要**
+**编译错误摘要**
 {编译错误关键信息}
 
-🔄 **回滚状态**
+**回滚状态**
 - 自动修复已回滚，代码恢复到修复前状态
 - 原始代码质量问题仍然存在
 
-💡 **下一步操作**
+**下一步操作**
 1. 手动修复编译错误涉及的代码问题
 2. 重新运行质量检查
 3. 如果确认不需要编译验证，请明确告知："不用管编译问题"
@@ -816,34 +816,34 @@ fi
 
 ### 提交准备输出
 ```markdown
-🚀 **Git提交准备完成**
+**Git提交准备完成**
 
-📋 **修改项目**：{项目列表}
+**修改项目**：{项目列表}
 
-📝 **提交摘要**：
+**提交摘要**：
 {为每个项目生成的提交信息预览}
 
-⚠️ **重要提醒**：
+**重要提醒**：
 - 所有修改都是基于预定义规则的自动修复
 - 请仔细review修改内容
 - 确认无误后请明确授权执行提交
 
-❓ **是否执行提交？**
+**是否执行提交？**
 请回复"可以"、"执行"或"提交吧"来授权提交操作
 ```
 
 ### 增量检查说明
 ```markdown
-🔍 **增量检查模式**
+**增量检查模式**
 
-📅 **检查范围**：
+**检查范围**：
 - 上次检查时间：{时间戳}
 - 本次检查时间：{时间戳}
 
-📂 **项目变更**：
+**项目变更**：
 {按项目显示变更文件统计}
 
-⚡ **性能优化**：
+**性能优化**：
 - 跳过未变更文件：{数量}个
 - 使用文件哈希缓存：{命中率}%
 - 并发检查项目：{数量}个
@@ -852,17 +852,17 @@ fi
 
 ### 错误输出
 ```markdown
-❌ AAF代码质量检查失败
+AAF代码质量检查失败
 
-🔍 **问题诊断**
+**问题诊断**
 - 项目发现：{状态}
 - 配置加载：{状态}
 - Agent执行：{状态}
 
-💡 **解决建议**
+**解决建议**
 {具体的解决步骤}
 
-📋 **详细错误信息**
+**详细错误信息**
 {错误日志和堆栈信息}
 ```
 
@@ -881,7 +881,7 @@ LOG_FILE=".codebuddy/logs/quality-check-$(date +%Y%m%d-%H%M%S).log"
 ```bash
 # 检查系统状态
 echo "=== AAF质量检查系统状态 ==="
-echo "配置文件：$(test -f .codebuddy/config/quality-check-config.json && echo '✅' || echo '❌')"
+echo "配置文件：$(test -f .codebuddy/config/quality-check-config.json && echo '存在' || echo '不存在')"
 echo "上次检查：$(jq -r '.lastCheckTime' .codebuddy/config/quality-check-config.json 2>/dev/null || echo '未知')"
 echo "发现项目：$(jq -r '.projects | length' .codebuddy/config/quality-check-config.json 2>/dev/null || echo '0')个"
 ```

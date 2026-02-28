@@ -8,7 +8,7 @@ provider:
 
 # AAF Sample 项目升级规则
 
-## 📖 规则说明
+## 规则说明
 
 本规则用于触发 **aaf-sample-upgrade** skill，通过 Agent 子代理自动升级三个 Sample 示例项目。
 
@@ -16,7 +16,7 @@ provider:
 
 ---
 
-## 🎯 触发条件
+## 触发条件
 
 当用户说出以下关键词时，自动调用 **aaf-sample-upgrade** skill：
 - "升级sample" / "升级Sample" / "升级demo" / "升级Demo"
@@ -26,7 +26,7 @@ provider:
 
 ---
 
-## 🔧 执行架构
+## 执行架构
 
 ```
 主 Agent 加载 aaf-sample-upgrade Skill
@@ -35,7 +35,7 @@ provider:
     ↓
 步骤 2：Agent: aaf-config-reader → 拉取 AAF 代码 + 读取配置
     ↓
-步骤 3：Agent: aaf-sample-updater → 拉取代码 + 升级 Template-AAF ⭐
+步骤 3：Agent: aaf-sample-updater → 拉取代码 + 升级 Template-AAF（核心）
     ↓ 成功后
 步骤 4+5：Agent × 2 并发 → 各自拉取代码 + 升级 Template_Android + Template-Empty
     ↓
@@ -54,16 +54,4 @@ provider:
 
 配置文件、AAF 依赖、Compose UI 代码、Manifest、编译验证 — 详见 Skill。
 
----
 
-## 🔗 相关资源
-
-| 类型 | 名称 | 说明 |
-|------|------|------|
-| Skill | `aaf-sample-upgrade` | 完整升级流程、步骤和检查清单 |
-| Agent | `aaf-project-finder` | 定位 AAF 相关项目位置（通用） |
-| Agent | `aaf-config-reader` | 读取 AAF 配置的子代理 |
-| Agent | `aaf-sample-updater` | 执行单个项目升级的子代理 |
-| Rule | `aaf_version` | 模块版本查找方法 |
-| Rule | `aaf_dependency` | 依赖管理规范 |
-| Rule | `aaf_git` | Git 提交规范 |

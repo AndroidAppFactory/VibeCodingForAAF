@@ -8,13 +8,13 @@ provider:
 
 # AAF 模块版本查找规则
 
-## 📖 规则说明
+## 规则说明
 
 本规则说明如何查找 AAF 框架各模块的最新发布版本。AAF 采用集中式依赖管理，不同模块可能有不同的版本号，需要根据 `artifactId` 在对应的 dependencies 配置文件中查找实际版本。
 
 ---
 
-## 🎯 适用场景
+## 适用场景
 
 - 升级 Sample 示例项目时查找依赖版本
 - 更新外部项目的 AAF 依赖
@@ -23,7 +23,7 @@ provider:
 
 ---
 
-## 📂 版本信息来源
+## 版本信息来源
 
 ### 1. AAF 项目配置文件
 
@@ -55,7 +55,7 @@ ext.moduleVersionName = "8.0.0"
 
 ---
 
-## 🔍 版本查找方法
+## 版本查找方法
 
 ### 方法 1: 根据 artifactId 查找精确版本
 
@@ -121,7 +121,7 @@ api "com.bihe0832.android:common-wrapper:8.0.0"
 
 ---
 
-## 📋 常用模块版本映射表
+## 常用模块版本映射表
 
 ### Common 系列模块
 
@@ -143,12 +143,12 @@ api "com.bihe0832.android:common-wrapper:8.0.0"
 | `lib-file` | `dependencies_lib.gradle` | LibFile | 跟随主版本 |
 
 **重要**: 
-- ⚠️ `lib-router-compiler` 等编译器模块通常**不跟随主版本**更新
-- ⚠️ 必须查找其在配置文件中的实际版本
+- **注意**: `lib-router-compiler` 等编译器模块通常**不跟随主版本**更新
+- **注意**: 必须查找其在配置文件中的实际版本
 
 ---
 
-## ⚠️ 特殊情况处理
+## 特殊情况处理
 
 ### 情况 1: 版本不一致
 
@@ -195,7 +195,7 @@ curl -s "https://repo1.maven.org/maven2/com/bihe0832/android/lib-router-compiler
 
 ---
 
-## 🛠️ 实用命令
+## 实用命令
 
 ### 查找模块配置
 
@@ -227,7 +227,7 @@ curl -s "https://repo1.maven.org/maven2/com/bihe0832/android/common-wrapper/mave
 
 ---
 
-## 📝 版本查找流程图
+## 版本查找流程图
 
 ```
 开始查找模块版本
@@ -236,7 +236,7 @@ curl -s "https://repo1.maven.org/maven2/com/bihe0832/android/common-wrapper/mave
     ↓
 在 dependencies_*.gradle 中搜索
     ↓
-    ├─→ 找到 → 读取 version 字段 → 使用精确版本 ✅
+    ├─→ 找到 → 读取 version 字段 → 使用精确版本
     │
     └─→ 未找到 → 检查是否为外部依赖
                   ↓
@@ -246,29 +246,29 @@ curl -s "https://repo1.maven.org/maven2/com/bihe0832/android/common-wrapper/mave
                                     ↓
                                 验证 Maven 是否发布
                                     ↓
-                                    ├─→ 已发布 → 使用该版本 ✅
+                                    ├─→ 已发布 → 使用该版本
                                     │
-                                    └─→ 未发布 → 使用 Maven 最新版 ⚠️
+                                    └─→ 未发布 → 使用 Maven 最新版
 ```
 
 ---
 
-## 💡 最佳实践
+## 最佳实践
 
 ### 1. 优先级策略
 
 依次尝试以下方法：
 
-1. ✅ **最优**: 从 `dependencies_*.gradle` 中查找模块实际版本
-2. ✅ **次优**: 使用 `ext.moduleVersionName`
-3. ✅ **保底**: 验证 Maven 并使用已发布版本
+1. **最优**: 从 `dependencies_*.gradle` 中查找模块实际版本
+2. **次优**: 使用 `ext.moduleVersionName`
+3. **保底**: 验证 Maven 并使用已发布版本
 
 ### 2. 升级时的注意事项
 
-- 📌 不要假设所有模块都是同一版本
-- 📌 编译器类模块 (kapt) 通常独立更新
-- 📌 升级后验证 Maven 发布状态
-- 📌 记录版本不一致的模块
+- 不要假设所有模块都是同一版本
+- 编译器类模块 (kapt) 通常独立更新
+- 升级后验证 Maven 发布状态
+- 记录版本不一致的模块
 
 ### 3. 文档记录
 
@@ -281,12 +281,5 @@ curl -s "https://repo1.maven.org/maven2/com/bihe0832/android/common-wrapper/mave
 - lib-router-compiler: 5.1.7 (独立版本，Maven 最新)
 ```
 
----
 
-## 🔗 相关规则
-
-- `aaf_cmd_sample_upgrade.mdc` - Sample 项目升级规则
-- `aaf_dependency.mdc` - 依赖管理规范
-- `aaf_common.mdc` - AAF 框架通用规范
-- `aaf_commands.mdc` - 命令索引
 

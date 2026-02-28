@@ -124,7 +124,4 @@ chore(deps): 升级 AAF 依赖版本
 - [ ] 版本号不一致的模块保持其实际版本
 - [ ] 提交信息说明了每个版本的来源
 
-## 相关规则
 
-- `aaf_version.mdc` - 详细的版本查找方法和映射表
-- `aaf_cmd_sample_upgrade.mdc` - 示例项目升级规则

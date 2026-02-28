@@ -39,12 +39,12 @@ enabledAutoRun: true
 
 #### 1.1 模块依赖检查
 ```kotlin
-// ❌ 错误：直接依赖具体实现
+// 错误：直接依赖具体实现
 class UserService {
     private val httpClient = OkHttpClient()  // 应该使用AAF的LibNetwork
 }
 
-// ✅ 正确：使用AAF框架
+// 正确：使用AAF框架
 class UserService {
     private val networkManager = LibNetwork.getInstance()
 }
@@ -52,14 +52,14 @@ class UserService {
 
 #### 1.2 分层架构检查
 ```kotlin
-// ❌ 错误：UI层直接访问数据层
+// 错误：UI层直接访问数据层
 class MainActivity : AppCompatActivity() {
     fun loadData() {
         val db = Room.databaseBuilder(...)  // 违反分层原则
     }
 }
 
-// ✅ 正确：通过Repository层
+// 正确：通过Repository层
 class MainActivity : AppCompatActivity() {
     private val repository = UserRepository()
     fun loadData() {
@@ -72,12 +72,12 @@ class MainActivity : AppCompatActivity() {
 
 #### 2.1 主线程阻塞检查
 ```kotlin
-// ❌ 高风险：主线程网络请求
+// 错误：主线程网络请求
 fun fetchData() {
     val response = httpClient.newCall(request).execute()  // 阻塞主线程
 }
 
-// ✅ 正确：异步处理
+// 正确：异步处理
 fun fetchData() {
     LibThread.getInstance().runOnBackgroundThread {
         val response = httpClient.newCall(request).execute()
@@ -87,7 +87,7 @@ fun fetchData() {
 
 #### 2.2 内存分配检查
 ```kotlin
-// ❌ 性能问题：频繁对象创建
+// 错误：频繁对象创建
 fun processData(list: List<String>) {
     for (item in list) {
         val result = StringBuilder()  // 每次循环创建新对象
@@ -95,7 +95,7 @@ fun processData(list: List<String>) {
     }
 }
 
-// ✅ 优化：复用对象
+// 优化：复用对象
 fun processData(list: List<String>) {
     val result = StringBuilder()
     for (item in list) {
@@ -108,12 +108,12 @@ fun processData(list: List<String>) {
 
 #### 3.1 空指针检查
 ```kotlin
-// ❌ 高风险：可能空指针
+// 错误：可能空指针
 fun processUser(user: User?) {
     val name = user.name  // 可能NPE
 }
 
-// ✅ 安全：空值检查
+// 正确：空值检查
 fun processUser(user: User?) {
     val name = user?.name ?: "Unknown"
 }
@@ -121,12 +121,12 @@ fun processUser(user: User?) {
 
 #### 3.2 异常处理检查
 ```kotlin
-// ❌ 风险：未处理异常
+// 错误：未处理异常
 fun parseJson(json: String): User {
     return Gson().fromJson(json, User::class.java)  // 可能抛出异常
 }
 
-// ✅ 安全：异常处理
+// 正确：异常处理
 fun parseJson(json: String): User? {
     return try {
         Gson().fromJson(json, User::class.java)
@@ -141,14 +141,14 @@ fun parseJson(json: String): User? {
 
 #### 4.1 Context泄露检查
 ```kotlin
-// ❌ 内存泄露：静态引用Activity
+// 错误：静态引用Activity
 class Utils {
     companion object {
         private var context: Context? = null  // 可能泄露Activity
     }
 }
 
-// ✅ 安全：使用ApplicationContext
+// 正确：使用ApplicationContext
 class Utils {
     companion object {
         private var appContext: Context? = null
@@ -161,14 +161,14 @@ class Utils {
 
 #### 4.2 监听器泄露检查
 ```kotlin
-// ❌ 内存泄露：未取消注册
+// 错误：未取消注册
 class MyActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         EventBus.getDefault().register(this)  // 未在onDestroy取消
     }
 }
 
-// ✅ 安全：生命周期管理
+// 正确：生命周期管理
 class MyActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         EventBus.getDefault().register(this)
@@ -185,7 +185,7 @@ class MyActivity : AppCompatActivity() {
 
 #### 5.1 单一职责原则（SRP）
 ```kotlin
-// ❌ 违反SRP：一个类承担多个职责
+// 错误：一个类承担多个职责
 class UserManager {
     fun saveUser(user: User) { /* 数据存储 */ }
     fun validateUser(user: User) { /* 数据验证 */ }
@@ -193,7 +193,7 @@ class UserManager {
     fun logActivity(user: User) { /* 日志记录 */ }
 }
 
-// ✅ 符合SRP：职责分离
+// 正确：职责分离
 class UserRepository {
     fun saveUser(user: User) { /* 只负责数据存储 */ }
 }
@@ -204,7 +204,7 @@ class UserValidator {
 
 #### 5.2 里氏替换原则（LSP）
 ```kotlin
-// ❌ 违反LSP：子类改变了父类行为
+// 错误：子类改变了父类行为
 open class Rectangle {
     open var width: Int = 0
     open var height: Int = 0
@@ -219,7 +219,7 @@ class Square : Rectangle() {
         }
 }
 
-// ✅ 符合LSP：正确的继承关系
+// 正确：正确的继承关系
 interface Shape {
     fun area(): Int
 }
@@ -233,7 +233,7 @@ class Square(private val side: Int) : Shape {
 
 #### 5.3 依赖倒置原则（DIP）
 ```kotlin
-// ❌ 违反DIP：依赖具体实现
+// 错误：依赖具体实现
 class OrderService {
     private val emailSender = SmtpEmailSender()  // 依赖具体类
     
@@ -242,7 +242,7 @@ class OrderService {
     }
 }
 
-// ✅ 符合DIP：依赖抽象
+// 正确：依赖抽象
 interface EmailSender {
     fun sendConfirmation(order: Order)
 }
@@ -258,14 +258,14 @@ class OrderService(private val emailSender: EmailSender) {
 
 #### 6.1 网络请求检查
 ```kotlin
-// ❌ 重复造轮子：使用第三方库
+// 错误：使用第三方库
 class ApiClient {
     private val retrofit = Retrofit.Builder()
         .baseUrl("https://api.example.com")
         .build()
 }
 
-// ✅ AAF优先：使用LibNetwork
+// 正确：使用LibNetwork
 class ApiClient {
     private val networkManager = LibNetwork.getInstance()
     
@@ -277,14 +277,14 @@ class ApiClient {
 
 #### 6.2 文件操作检查
 ```kotlin
-// ❌ 重复实现：自定义文件工具
+// 错误：自定义文件工具
 class FileUtils {
     fun copyFile(src: String, dst: String) {
         // 自定义实现文件复制
     }
 }
 
-// ✅ AAF优先：使用LibFile
+// 正确：使用LibFile
 class FileManager {
     fun copyFile(src: String, dst: String) {
         LibFile.copyFile(src, dst)
@@ -323,13 +323,13 @@ class FileManager {
    # 使用正则表达式检测常见问题模式
    
    # 检测主线程阻塞
-   grep -n "\.execute()" "$file" && echo "⚠️ 可能的主线程阻塞：$file"
+   grep -n "\.execute()" "$file" && echo "[警告] 可能的主线程阻塞：$file"
    
    # 检测内存泄露风险
-   grep -n "static.*Context" "$file" && echo "❌ 静态Context引用：$file"
+   grep -n "static.*Context" "$file" && echo "[错误] 静态Context引用：$file"
    
    # 检测AAF框架使用
-   grep -n "OkHttp\|Retrofit\|Volley" "$file" && echo "💡 建议使用LibNetwork：$file"
+   grep -n "OkHttp\|Retrofit\|Volley" "$file" && echo "[建议] 建议使用LibNetwork：$file"
    ```
 
 4. **语义分析检查**
@@ -442,30 +442,30 @@ class FileManager {
 ```markdown
 # 代码审查报告 - {项目名}
 
-## 📊 检查概览
+## 检查概览
 - 检查文件：{文件数量}个
 - 发现问题：{问题总数}个
 - 自动修复：{修复数量}个
 - 需要关注：{待处理数量}个
 
-## 🚨 严重问题（Error级别）
+## 严重问题（Error级别）
 {错误问题列表}
 
-## ⚠️ 警告问题（Warning级别）
+## 警告问题（Warning级别）
 {警告问题列表}
 
-## 💡 改进建议（Info级别）
+## 改进建议（Info级别）
 {信息级别问题列表}
 
-## 🔧 自动修复记录
+## 自动修复记录
 {自动修复列表}
 
-## 📈 代码质量指标
+## 代码质量指标
 - 平均复杂度：{复杂度}
 - AAF框架使用率：{使用率}%
 - 设计原则得分：{得分}/100
 
-## 🎯 优化建议
+## 优化建议
 1. **架构优化**：{具体建议}
 2. **性能优化**：{具体建议}
 3. **安全加固**：{具体建议}

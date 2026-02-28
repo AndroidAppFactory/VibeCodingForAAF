@@ -193,7 +193,7 @@ App/src/main/AndroidManifest.xml
 ```gradle
 compileSdkVersion = [VALUE]
 buildToolsVersion = [VALUE]
-appMinSdkVersion = [VALUE]   // ⚠️ 注意：这里是 appMinSdkVersion，不是 libMinSdkVersion
+appMinSdkVersion = [VALUE]   // 注意：这里是 appMinSdkVersion，不是 libMinSdkVersion
 targetSdkVersion = [VALUE]
 ```
 
@@ -207,7 +207,7 @@ dependencies {
     // common-wrapper-min → dependencies_common.gradle → CommonWrapperMin.version
     implementation "com.bihe0832.android:common-wrapper-min:[VERSION]"
     // lib-router-compiler → dependencies_lib.gradle → RouterCompiler.version
-    // ⚠️ 可能未发布到最新版，需验证 Maven 可用性
+    // 注意：可能未发布到最新版，需验证 Maven 可用性
     kapt "com.bihe0832.android:lib-router-compiler:[VERSION]"
 }
 ```
@@ -238,7 +238,7 @@ cd [项目路径]
 ```
 ## 升级结果：[项目名称]
 
-### 状态：✅ 成功 / ❌ 失败
+### 状态：成功 / 失败
 
 ### 更新的文件
 
@@ -261,7 +261,7 @@ cd [项目路径]
 - [x] DebugRouterView.kt
 
 ### 编译验证
-- 状态：✅ 编译成功 / ❌ 编译失败
+- 状态：编译成功 / 编译失败
 - 错误信息（如失败）：[具体错误]
 
 ### 提交建议

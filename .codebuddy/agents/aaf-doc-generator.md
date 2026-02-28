@@ -158,7 +158,7 @@ git diff $LAST_TAG HEAD -- [module]/src/main/
 
 ### 已写入文档
 - 路径：[doc_path]/use/[分类]/[artifact-id].md
-- 状态：✅ 已写入
+- 状态：已写入
 
 ### SUMMARY.md 更新建议
 - 状态：需要添加 / 已存在
@@ -179,7 +179,7 @@ git diff $LAST_TAG HEAD -- [module]/src/main/
 ### [模块名1]
 - 优先级：高/中/低
 - 变更类型：新增 API / 签名变更 / ...
-- 文档状态：✅ 已更新 / ⏭️ 跳过（低优先级）/ 🆕 已新建
+- 文档状态：已更新 / 跳过（低优先级）/ 已新建
 - 文档路径：[路径]
 
 ### SUMMARY.md 更新建议
