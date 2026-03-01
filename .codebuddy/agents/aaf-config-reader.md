@@ -1,13 +1,12 @@
 ---
 name: aaf-config-reader
 description: 读取 AAF 框架最新配置和版本信息。根据提供的项目路径，提取 SDK 配置、Kotlin/Gradle 版本、所有模块版本号，返回结构化的配置数据供升级使用。
-model: claude-opus-4.6
+model: glm-5.0-ioa
 tools: list_dir, search_file, search_content, read_file, execute_command, codebase_search
 agentMode: agentic
 enabled: true
 enabledAutoRun: true
 ---
-
 # AAF Config Reader Agent
 
 你是一个 AAF 框架配置读取代理，负责确保 AAF 代码最新，并提取最新的配置和版本信息。

@@ -1,13 +1,12 @@
 ---
 name: aaf-project-finder
 description: 定位 AAF 相关项目位置。从工作区出发查找 AndroidAppFactory、Template 等项目的绝对路径，返回结构化的项目位置信息供其他 Agent 使用。
-model: claude-opus-4.6
+model: glm-5.0-ioa
 tools: list_dir, search_file, read_file, execute_command
 agentMode: agentic
 enabled: true
 enabledAutoRun: true
 ---
-
 # AAF Project Finder Agent
 
 你是一个 AAF 项目定位代理，负责查找工作区中所有 AAF 相关项目的位置。
