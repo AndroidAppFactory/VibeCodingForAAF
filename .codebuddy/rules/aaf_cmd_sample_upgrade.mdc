@@ -40,29 +40,9 @@ provider: zixie（cdn.bihe0832.com）
 
 ---
 
-## 执行架构
+## 执行方式
 
-```
-主 Agent 加载 aaf-sample-upgrade Skill
-    ↓
-步骤 1：Agent: aaf-project-finder → 定位项目位置
-    ↓
-步骤 2：Agent: aaf-config-reader → 拉取 AAF 代码 + 读取配置
-    ↓
-步骤 3：Agent: aaf-sample-updater → 拉取代码 + 升级 Template-AAF（核心）
-    ↓ 成功后
-步骤 4+5：Agent × 2 并发 → 各自拉取代码 + 升级 Template_Android + Template-Empty
-    ↓
-步骤 6+7：汇总报告 + 提交建议
-```
-
-### Agent 说明
-
-| Agent | 职责 |
-|-------|------|
-| `aaf-project-finder` | 定位所有 AAF 相关项目的绝对路径（通用，可被其他 Skill 复用） |
-| `aaf-config-reader` | 拉取 AAF 最新代码 + 读取 SDK 配置、模块版本（只读） |
-| `aaf-sample-updater` | 拉取 Template 最新代码 + 升级单个项目：修改配置、同步依赖和 UI 代码 + 编译验证 |
+**必须加载 `aaf-sample-upgrade` Skill 执行**，执行架构和 Agent 调度详见 Skill 定义。
 
 ### 升级内容
 

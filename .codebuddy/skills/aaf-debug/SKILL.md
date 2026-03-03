@@ -5,7 +5,7 @@ description: AAF 代码调试助手（增强版）- 在 user 级 debug 流程基
 
 # AAF 代码调试助手（增强版）
 
-> 本 Skill 继承 user 级 `debug` Skill 的完整调试流程，仅补充 AAF 专属的模块识别能力。
+> **前置依赖**：本 Skill 继承 user 级 `debug` Skill 的完整调试流程（阶段 2-7），仅补充 AAF 专属的模块识别能力。运行前请确认 user 级 `debug` Skill 已安装（位于 `~/.codebuddy/skills/debug/`）。
 
 ## 触发关键词
 

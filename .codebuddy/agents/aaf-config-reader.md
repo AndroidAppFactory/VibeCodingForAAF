@@ -93,14 +93,13 @@ common-wrapper, common-debug, common-compose-debug, common-wrapper-min, lib-rout
 
 #### 模块版本定义文件映射
 
+> 配置文件完整列表及说明详见 `aaf_dependency` 第 2 章「依赖配置文件结构」。
+
 | 模块类型 | 版本定义文件 |
 |---------|------------|
 | 通用公共组件（common-*） | `dependencies_common.gradle` |
-| TBS 相关（common-wrapper-tbs） | `dependencies_tbs.gradle` |
-| 锁屏/Widget（lib-wrapper-screen） | `dependencies_lock_widget.gradle` |
-| ASR 语音（lib-asr-*, lib-sherpa-*） | `dependencies_asr.gradle` |
-| 基础 Lib（lib-*，除上述外） | `dependencies_lib.gradle` |
-| 服务组件 | `dependencies_services.gradle` |
+| 基础 Lib（lib-*） | `dependencies_lib.gradle` |
+| 其他分类模块 | 按 `aaf_dependency` 中的文件映射查找 |
 | 已废弃模块 | `dependencies_deprecated.gradle` |
 
 #### 查找方法

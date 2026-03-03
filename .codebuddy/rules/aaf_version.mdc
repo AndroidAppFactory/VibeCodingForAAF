@@ -62,12 +62,11 @@ ext.moduleVersionName = "8.0.0"
 
 ## 版本查找方法
 
+> 具体的查找步骤、模块映射表和流程图由 `aaf-config-reader` Agent 实现，本规则只定义原则。
+
 ### 方法 1: 根据 artifactId 查找精确版本（推荐）
 
-1. **识别 artifactId**：从 Maven 依赖声明 `com.bihe0832.android:common-debug:x.x.x` 中提取 `common-debug`
-2. **搜索配置文件**：在 AAF 项目的 `dependencies_*.gradle` 中搜索该 artifactId
-3. **读取版本**：打开找到的配置文件，读取对应模块的 `version` 字段
-4. **应用版本号**
+在 AAF 项目的 `dependencies_*.gradle` 中搜索 artifactId，读取对应模块的 `version` 字段。
 
 ### 方法 2: 使用通用版本号
 
@@ -75,82 +74,19 @@ ext.moduleVersionName = "8.0.0"
 
 ---
 
-## 常用模块版本映射表
-
-### Common 系列模块
-
-| artifactId | 配置文件 | 模块名 | 通常版本 |
-|-----------|---------|--------|---------|
-| `common-wrapper` | `dependencies_common.gradle` | CommonWrapper | 跟随主版本 |
-| `common-wrapper-min` | `dependencies_common.gradle` | CommonWrapperMin | 跟随主版本 |
-| `common-wrapper-compose` | `dependencies_common.gradle` | CommonWrapperCompose | 跟随主版本 |
-| `common-debug` | `dependencies_common.gradle` | CommonDebug | 跟随主版本 |
-| `common-compose-debug` | `dependencies_common.gradle` | CommonDebugCompose | 跟随主版本 |
-
-### Lib 系列模块
-
-| artifactId | 配置文件 | 模块名 | 通常版本 |
-|-----------|---------|--------|---------|
-| `lib-router-compiler` | `dependencies_lib.gradle` | RouterCompiler | **独立版本** |
-| `lib-download` | `dependencies_lib.gradle` | LibDownload | 跟随主版本 |
-| `lib-network` | `dependencies_lib.gradle` | LibNetwork | 跟随主版本 |
-| `lib-file` | `dependencies_lib.gradle` | LibFile | 跟随主版本 |
-
-**重要**: 
-- **注意**: `lib-router-compiler` 等编译器模块通常**不跟随主版本**更新
-- **注意**: 必须查找其在配置文件中的实际版本
-
----
-
 ## 特殊情况处理
 
-| 情况 | 现象 | 处理方式 |
-|------|------|----------|
-| 版本不一致 | 模块 `version` 与 `ext.moduleVersionName` 不同（如编译器模块） | 使用模块实际版本 |
-| Maven 未发布 | 配置文件有新版本但 Maven 仓库未发布 | 检查 Maven 中央仓库 `maven-metadata.xml`，使用已发布版本 |
-| 模块找不到 | 所有 `dependencies_*.gradle` 中无对应 artifactId | 检查 `dependencies_deprecated.gradle`（可能已废弃）或确认是外部依赖 |
-
----
-
-## 版本查找流程图
-
-```
-开始查找模块版本
-    ↓
-识别 artifactId
-    ↓
-在 dependencies_*.gradle 中搜索
-    ↓
-    ├─→ 找到 → 读取 version 字段 → 使用精确版本
-    │
-    └─→ 未找到 → 检查是否为外部依赖
-                  ↓
-                  ├─→ 是外部依赖 → 使用外部版本
-                  │
-                  └─→ 是 AAF 模块 → 使用 ext.moduleVersionName
-                                    ↓
-                                验证 Maven 是否发布
-                                    ↓
-                                    ├─→ 已发布 → 使用该版本
-                                    │
-                                    └─→ 未发布 → 使用 Maven 最新版
-```
+| 情况 | 处理方式 |
+|------|----------|
+| 版本不一致（编译器模块等） | 使用模块实际版本，不使用 `ext.moduleVersionName` |
+| Maven 未发布 | 检查 Maven 中央仓库 `maven-metadata.xml`，使用已发布版本 |
+| 模块找不到 | 检查 `dependencies_deprecated.gradle`（可能已废弃）或确认是外部依赖 |
 
 ---
 
 ## 最佳实践
 
-### 1. 优先级策略
-
-依次尝试以下方法：
-
-1. **最优**: 从 `dependencies_*.gradle` 中查找模块实际版本
-2. **次优**: 使用 `ext.moduleVersionName`
-3. **保底**: 验证 Maven 并使用已发布版本
-
-### 2. 升级时的注意事项
-
-- 不要假设所有模块都是同一版本
-- 编译器类模块 (kapt) 通常独立更新
-- 升级后验证 Maven 发布状态
-- 记录版本不一致的模块
+1. **优先级**：精确版本 → `ext.moduleVersionName` → Maven 已发布版本
+2. 不要假设所有模块都是同一版本
+3. 编译器类模块 (kapt) 通常独立更新
+4. 升级后验证 Maven 发布状态

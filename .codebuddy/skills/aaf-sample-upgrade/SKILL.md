@@ -124,27 +124,7 @@ todo_write(merge=true, todos=[
 
 ## 核心升级策略
 
-### 升级优先级顺序
-
-**重要：必须按此顺序升级**：
-
-1. **Template-AAF**（完整示例，第一优先级）
-2. **Template_Android**（基础示例，第二优先级）
-3. **Template-Empty**（最简示例，第三优先级）
-
-**为什么顺序很重要**：
-- Template-AAF 是最完整的参考实现
-- 如果 Template-AAF 遇到问题，必须先修复再继续
-- Template_Android 和 Template-Empty 参照 Template-AAF 的解决方案
-- 绝不跳过 Template-AAF 或改变顺序
-
-### 升级内容
-
-**必须检查和同步**（具体升级清单由 `aaf-sample-updater` Agent 内部定义）：
-1. SDK 配置、Kotlin/Gradle 版本
-2. AAF 依赖版本
-3. Compose 配置和 UI 代码
-4. Manifest 配置
+升级优先级和内容详见下方工作流程。简要：Template-AAF → Template_Android → Template-Empty，Template-AAF 编译成功后可并发升级其他两个。
 
 ## 步骤 1：定位项目位置
 

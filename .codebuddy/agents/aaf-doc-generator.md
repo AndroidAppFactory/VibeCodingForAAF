@@ -95,14 +95,7 @@ implementation 'com.bihe0832.android:[maven-artifact]:+'
 
 读取 `[doc_path]/SUMMARY.md`，检查是否已有该模块的索引条目。
 
-如果没有，根据 dependencies 文件加载顺序确定建议插入位置：
-1. `dependencies_lib.gradle`（基础 lib 模块）
-2. `dependencies_common.gradle`（公共组件）
-3. `dependencies_lock_widget.gradle`（锁屏组件）
-4. `dependencies_tbs.gradle`（TBS 相关）
-5. `dependencies_services.gradle`（三方服务）
-6. `dependencies_asr.gradle`（语音识别）
-7. `dependencies_deprecated.gradle`（已废弃）
+如果没有，根据 `aaf_cmd_doc_inspection` 规则中定义的 dependencies 文件加载顺序确定建议插入位置。
 
 ## 模式 2：增量更新（update）
 
@@ -193,3 +186,5 @@ git diff $LAST_TAG HEAD -- [module]/src/main/
 - 文档定位是**功能介绍 + 接口手册**，不写内部实现
 - 参考已有文档的风格保持一致
 - 如果模块源码为空或无公共 API，返回说明而非空文档
+
+> **设计备注**：本 Agent 可由 rule（`aaf_cmd_doc_inspection`）直接调用，无需 Skill 编排层。对于单一职责的 Agent，rule 直接调用是合理的简化模式。

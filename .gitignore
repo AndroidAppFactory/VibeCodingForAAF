@@ -80,6 +80,7 @@ SAMPLE_UPGRADE_REPORT.md
 ######################
 .codebuddy/config/quality-check-config.json
 .codebuddy/config/quality-check-history.json
+.codebuddy/cache/
 .codebuddy/reports/
 .codebuddy/docs/
 .codebuddy/scripts/

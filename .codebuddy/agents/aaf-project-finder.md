@@ -35,16 +35,11 @@ enabledAutoRun: true
 
 ### 查找顺序
 
-先读取 `aaf_common` 规则中的"项目定位策略"，按其定义的顺序查找。
-
-对于 AAF-Temp，它位于工作区内部（`{workspace}/AAF-Temp`），优先级最高。
+按 `aaf_common` 规则中定义的"项目定位策略"执行查找（使用 `read_rules` 工具读取 `aaf_common`）。AAF-Temp 位于工作区内部（`{workspace}/AAF-Temp`），优先级最高。
 
 ### 验证项目有效性
 
-找到路径后，验证是否是有效的项目目录：
-- 检查目录是否存在
-- 检查是否包含关键文件（如 `build.gradle`、`settings.gradle`）
-- 对于 Git 项目，检查 `.git` 目录是否存在
+找到路径后验证：目录存在、包含 `build.gradle`/`settings.gradle`、Git 项目有 `.git` 目录。
 
 ## 返回格式
 
@@ -80,4 +75,3 @@ enabledAutoRun: true
 - 只执行读取和查找操作，**不修改任何文件**
 - 返回的路径必须是**绝对路径**
 - 如果通过 `*.code-workspace` 文件找到相对路径，需要转换为绝对路径
-- 对于 AAF-Temp，它位于工作区内部（`{workspace}/AAF-Temp`）
