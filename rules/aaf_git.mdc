@@ -1,0 +1,16 @@
+---
+description: AAF Git Scope 补充 - 当用户说"准备提交"、"提交代码"、"commit"时加载，提供 AAF 项目专属的 Scope 列表
+alwaysApply: false
+enabled: true
+updatedAt: 2026-02-26T17:00:00.000Z
+provider: zixie(code@bihe0832)
+---
+
+# AAF Git Scope 补充
+
+> 通用 Git 规范见 user 级 `zixie_git.mdc`（`git-rules/zixie_git`，fallback: `~/zixie/github/AIConfig/rules/dev/zixie_git.mdc`），本文件仅补充 AAF 项目专属 Scope。
+
+## AAF 常用 Scope
+
+- AAF 核心模块：`LibAAF`、`LibDownload`、`LibNetwork`、`LibFile`、`LibThread`、`LibImage` 等
+- 通用：`gradle`、`demo`、`template`、`release`

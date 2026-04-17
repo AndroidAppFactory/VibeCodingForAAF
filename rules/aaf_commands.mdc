@@ -1,0 +1,94 @@
+---
+description: AAF 命令索引 - 当用户提到"命令列表"、"帮助"、"升级AAF"、"升级sample"、"发布检查"、"文档巡检"、"更新文档"时加载
+alwaysApply: false
+enabled: true
+updatedAt: 2026-02-28T20:00:00.000Z
+provider: zixie(code@bihe0832)
+---
+
+# AAF 命令索引
+
+## 说明
+
+本文档是 AAF 项目专属命令的入口。通用命令见 `commands/INDEX.md`。
+
+## AAF 专属命令
+
+### 1. 升级项目 AAF 版本
+
+**触发关键词**："升级 XXX 的 AAF 版本"、"更新 AAF 依赖"
+
+**执行规则**: `aaf_cmd_version_upgrade.mdc`
+
+自动识别模块 → 逐个查找实际版本 → 生成报告 → 执行更新
+
+**重要**：不同模块可能有不同版本号，必须逐个查找，不能统一修改！
+
+---
+
+### 2. 升级示例项目
+
+**触发关键词**："升级sample"、"升级demo"、"更新Template"、"升级示例项目"
+
+**执行 Skill**: `aaf-sample-upgrade`（编排 Agent: `aaf-project-finder` → `aaf-config-reader` → `aaf-sample-updater`）
+
+按顺序升级 Template-AAF → Template_Android → Template-Empty，同步编译配置和 AAF 依赖，验证编译通过。
+
+---
+
+### 3. 代码调试（AAF 增强）
+
+**触发关键词**："debug AAF 的 XX"、"调试 AAF 的 LibXXX"
+
+**执行 Skill**: `aaf-debug`
+
+在 user 级 debug 流程基础上，增加 AAF 模块识别（LibXXX、CommonXXX）。
+
+---
+
+### 4. Demo 自动运行
+
+**触发关键词**："后续都自动运行"、"自动运行"
+
+**执行规则**: `aaf_demo.mdc`
+
+每次修改后自动编译 → 安装 APK → 启动应用。说"停止自动运行"退出。
+
+---
+
+## 命令速查表
+
+### 文档相关
+
+| 命令关键词 | 执行对象 | 功能 |
+|-----------|---------|------|
+| `更新文档` `同步文档` | `aaf_cmd_doc_management.mdc` → `aaf-doc-generator` Agent | 检测变更并同步文档 |
+| `生成文档` `整理文档` | `aaf_cmd_doc_management.mdc` → `aaf-doc-generator` Agent | 为模块生成/整理文档 |
+| `文档巡检` `巡检` | `aaf_cmd_doc_inspection.mdc` | 检查模块与文档对应关系 |
+
+### 发布相关
+
+| 命令关键词 | 执行对象 | 功能 |
+|-----------|---------|------|
+| `发布检查` `准备发布` `release` | `aaf_cmd_release_check.mdc` | 完整发布前检查 |
+| `编译检查` | `aaf_cmd_release_check.mdc` | 仅编译检查 |
+| `版本检查` | `aaf_cmd_release_check.mdc` | 检查版本号 |
+
+### 开发相关
+
+| 命令关键词 | 执行对象 | 功能 |
+|-----------|---------|------|
+| `升级 AAF 版本` | `aaf_cmd_version_upgrade.mdc` | 升级项目 AAF 依赖 |
+| `添加依赖` | `aaf_dependency.mdc` | 依赖管理规范 |
+| `查询版本` `模块版本` | `aaf_version.mdc` | 模块版本查找 |
+| `apk-16kb` `16KB 对齐` | `skills/aaf/apk-16kb-check/` | APK/AAR/AAB 16KB 对齐检查 |
+
+### 组合命令
+
+| 场景 | 说什么 | 执行流程 |
+|-----|-------|---------|
+| 完整发布流程 | "准备发布" | 版本号检查 → 模块完整性检查 → 编译检查 → 文档同步检查 → 生成报告 |
+| 文档维护流程 | "文档维护" | 文档巡检 → 文档同步 → 生成维护报告 |
+| 模块开发完成 | "开发完成" | 编译检查 → 文档同步 → 注释检查 → 生成总结 |
+| 全面检查 | "全面检查" | 文档巡检 + 发布检查 + 文档同步 |
+| 快速检查 | "快速检查" | 编译 + 版本号检查 |

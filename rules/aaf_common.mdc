@@ -1,0 +1,65 @@
+---
+description: AAF 框架通用开发规范 - AndroidAppFactory 项目开发标准和流程
+alwaysApply: false
+enabled: true
+updatedAt: 2026-03-12T11:00:00.000Z
+provider: zixie(code@bihe0832)
+---
+
+# AAF 框架通用开发规范
+
+## 检查清单（AAF 开发时必须使用）
+
+> **AI 执行 AAF 相关任务时，必须逐项检查以下清单，禁止自行编造检查项。**
+>
+> **维护提醒**：修改正文中的规则时，必须同步更新此清单。
+
+| # | 检查项 | 必须 | 对应章节 |
+|---|--------|:----:|----------|
+| 1 | 涉及版本/依赖时，先加载 `aaf_version.mdc` 再操作 | 是 | 1.1 前置规则加载 |
+| 2 | 按优先级顺序定位项目路径（~/zixie/github/ → 工作区同级 → 父目录同级 → 工作区内部 → workspace 配置） | 是 | 2. 项目定位策略 |
+| 3 | Kotlin 优先，Compose 优先 | 是 | 3. 技术栈 |
+| 4 | 编译通过 + 功能测试通过 + 代码质量检查通过，三项全部完成 | 是 | 4. 任务完成标准 |
+
+## 1. 术语与项目
+
+### 1.1 前置规则加载
+
+任务涉及以下关键词时，**必须先加载对应规则再操作**，禁止凭记忆或推测：
+
+| 任务关键词 | 必须加载的规则 |
+|-----------|--------------|
+| 版本、升级、依赖、dependency、version | `aaf_version.mdc` |
+| 提交、commit | `aaf_git.mdc` |
+| Demo、AAF-Temp、自动运行 | `aaf_demo.mdc` |
+
+> 加载方式：`read_rules` → fallback `{项目}/.codebuddy/rules/` → fallback `~/zixie/github/AIConfig/rules/`
+
+### 1.2 术语
+
+- **AAF**: AndroidAPPFactory 的简称，在所有对话中统一使用此缩写
+- **核心项目**: AndroidAppFactory（框架源码）、AndroidAppFactory-Doc（框架文档）
+- **Sample**（示例项目）: Template-AAF / Template_Android / Template-Empty — 外部开发者参考用，不直接在此开发
+- **Demo**（演示项目）: AAF-Temp（从 Template-Empty clone）— 内部临时开发验证，可随意修改
+
+## 2. 项目定位策略
+
+查找 AAF 相关项目时，按以下优先级顺序：
+0. **先查 working memory**：读取 `.codebuddy/memory/` 近期文件，若已有项目路径记录则直接复用，跳过后续搜索
+1. **固定开发目录**：`~/zixie/github/{项目名}`
+2. **工作区同级目录**：`{workspace}/../{项目名}`
+3. **父目录同级**：`{workspace}/../../{项目名}`
+4. **工作区内部**：`{workspace}/{项目名}`（如 AAF-Temp）
+5. **workspace 配置**：读取 `*.code-workspace` 文件中的 folders 配置
+6. **以上均未找到**：询问用户提供项目路径，并列出已搜索的路径
+
+> **成功定位后**：将项目路径写入当日 working memory，供后续会话复用。
+
+## 3. 技术栈
+
+- **语言**: Kotlin 优先，Java 兼容旧代码
+- **UI**: Jetpack Compose 优先，传统 View 备选
+
+## 4. 任务完成标准
+
+代码通过编译、功能测试通过、代码质量检查通过 — **三项全部完成才算任务真正完成**。
