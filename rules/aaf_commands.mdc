@@ -10,7 +10,7 @@ provider: zixie(code@bihe0832)
 
 ## 说明
 
-本文档是 AAF 项目专属命令的入口。通用命令见 `commands/INDEX.md`。
+本文档是 AAF 项目专属命令的入口。通用 Skill 与命令索引见 `rules/common/zixie_skill_index.mdc`。
 
 ## AAF 专属命令
 
