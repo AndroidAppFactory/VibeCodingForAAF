@@ -1,94 +1,61 @@
 ######################
-# 解决java产生文件
+# Python
 ######################
-*.class
+__pycache__/
+*.pyc
+*.log
+.env
 
 ######################
-# 解决maven产生的文件
+# 编辑器 / IDE
 ######################
-target/
-**/target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
-
-######################
-# 解决各类编辑器自动产生的文件
-######################
-*.iml
 .idea/
-/out/
-/target/
-.idea_modules/
-local.properties
+*.iml
+.vscode/
+.DS_Store
 *.code-workspace
 
 ######################
-# gradle
+# CodeBuddy
 ######################
-.gradle
+.codebuddy/
 
 ######################
-# android
+# 运行时临时文件（各 skill 的 temp/ 统一存放，不提交 git）
 ######################
-build
-captures
-gradle.properties
+skills/*/temp/
+
+######################
+# Java / Android / Gradle 构建产物
+######################
+*.class
+target/
+**/target/
+.gradle
+build/
+captures/
+local.properties
 .externalNativeBuild
 .cxx
 
 ######################
-# mac
-######################
-.DS_Store
-sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20
-sherpa-onnx-whisper-base
-bin
-aafRepo
-
-######################
-# 自动克隆的AAF项目目录
+# AAF 相关项目目录（若用户在本仓库内 clone 这些项目，不纳入版本控制）
 ######################
 AndroidAppFactory
 AndroidAppFactory-Doc
 Template-Empty
 Template_Android
 Template-AAF
-
-######################
-# 临时开发项目（从Template-Empty复制）
-######################
 AAF-Temp/
 
 ######################
 # 升级验证报告（自动生成）
 ######################
-sample_upgrade_report.md
-template_android_errors.md
-template_empty_error.md
-SAMPLE_UPGRADE_REPORT.md
 *_upgrade_report*.md
 *_error*.md
-
-######################
-# 代码质量检查（本地配置和报告）
-######################
-.codebuddy/config/quality-check-config.json
-.codebuddy/config/quality-check-history.json
-.codebuddy/cache/
-.codebuddy/reports/
-.codebuddy/docs/
-.codebuddy/scripts/
-.codebuddy/plans/
 
 ######################
 # Skill 打包文件
 ######################
 *.zip
-aaf-sample-upgrade.zip
-
+.codebuddy
