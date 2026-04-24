@@ -38,10 +38,13 @@ enabledAutoRun: true
 
 ## 步骤 0：读取历史记录与纠正反馈
 
+> **缓存路径变量**：`{INSTANCE_CACHE}` = `{WORK_ROOT}/github/AIConfig/instances/{AI_NAME}/cache`
+
 ```bash
 # 读取纠正记录（若存在），避免重复犯同类错误
-if [ -f ~/.codebuddy/cache/aaf-config-reader/corrections.log ]; then
-  tail -12 ~/.codebuddy/cache/aaf-config-reader/corrections.log
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-config-reader"
+if [ -f "$CACHE_DIR/corrections.log" ]; then
+  tail -12 "$CACHE_DIR/corrections.log"
 fi
 ```
 
@@ -222,22 +225,24 @@ kotlinCompilerExtensionVersion（Compose Compiler 版本）
 
 ## 历史归档（E2 记忆与复盘）
 
-每次执行完成后，将摘要追加到 `~/.codebuddy/cache/aaf-config-reader/history.log`：
+每次执行完成后，将摘要追加到 `{INSTANCE_CACHE}/aaf-config-reader/history.log`：
 
 ```bash
-mkdir -p ~/.codebuddy/cache/aaf-config-reader
-[ $(wc -l < ~/.codebuddy/cache/aaf-config-reader/history.log 2>/dev/null || echo 0) -lt 10 ] && \
-  echo "[$(date '+%Y-%m-%d %H:%M')] [AAF版本] 读取 X 个配置项 + Y 个模块版本 | 状态：成功/部分成功 | 耗时约 Ns" >> ~/.codebuddy/cache/aaf-config-reader/history.log
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-config-reader"
+mkdir -p "$CACHE_DIR"
+[ $(wc -l < "$CACHE_DIR/history.log" 2>/dev/null || echo 0) -lt 10 ] && \
+  echo "[$(date '+%Y-%m-%d %H:%M')] [AAF版本] 读取 X 个配置项 + Y 个模块版本 | 状态：成功/部分成功 | 耗时约 Ns" >> "$CACHE_DIR/history.log"
 ```
 
 ## 负面反馈记录（E3 数据飞轮）
 
-当用户指出读取结果有误（如版本号错误、遗漏模块、路径无效）时，将反馈追加到 `~/.codebuddy/cache/aaf-config-reader/corrections.log`：
+当用户指出读取结果有误（如版本号错误、遗漏模块、路径无效）时，将反馈追加到 `{INSTANCE_CACHE}/aaf-config-reader/corrections.log`：
 
 ```bash
-mkdir -p ~/.codebuddy/cache/aaf-config-reader
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-config-reader"
+mkdir -p "$CACHE_DIR"
 echo "[$(date '+%Y-%m-%d %H:%M')] [类型:版本错误/遗漏/路径无效] [模块/配置项] 用户反馈：XXX → 已修正为 YYY
----" >> ~/.codebuddy/cache/aaf-config-reader/corrections.log
+---" >> "$CACHE_DIR/corrections.log"
 ```
 
 执行前**应读取** `corrections.log`（如存在），避免重复犯同类错误。

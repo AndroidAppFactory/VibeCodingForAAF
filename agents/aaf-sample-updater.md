@@ -25,10 +25,13 @@ enabledAutoRun: true
 
 ### 阶段 -1：读取历史记录与纠正反馈
 
+> **缓存路径变量**：`{INSTANCE_CACHE}` = `{WORK_ROOT}/github/AIConfig/instances/{AI_NAME}/cache`
+
 ```bash
 # 读取纠正记录（若存在），避免重复犯同类错误
-if [ -f ~/.codebuddy/cache/aaf-sample-updater/corrections.log ]; then
-  tail -12 ~/.codebuddy/cache/aaf-sample-updater/corrections.log
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-sample-updater"
+if [ -f "$CACHE_DIR/corrections.log" ]; then
+  tail -12 "$CACHE_DIR/corrections.log"
 fi
 ```
 
@@ -270,17 +273,18 @@ git commit -m "chore(sample): 升级 AAF 到 [VERSION] 并同步配置
 
 ## 历史归档（E2 记忆与复盘）
 
-每次执行完成后，将摘要追加到 `~/.codebuddy/cache/aaf-sample-updater/history.log`：
+每次执行完成后，将摘要追加到 `{INSTANCE_CACHE}/aaf-sample-updater/history.log`：
 
 ```bash
-mkdir -p ~/.codebuddy/cache/aaf-sample-updater
-[ $(wc -l < ~/.codebuddy/cache/aaf-sample-updater/history.log 2>/dev/null || echo 0) -lt 10 ] && \
-  echo "[$(date '+%Y-%m-%d %H:%M')] [项目:Template-XXX] AAF [旧版本] → [新版本] | 文件 X 个，依赖 Y 项 | 编译：成功/失败" >> ~/.codebuddy/cache/aaf-sample-updater/history.log
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-sample-updater"
+mkdir -p "$CACHE_DIR"
+[ $(wc -l < "$CACHE_DIR/history.log" 2>/dev/null || echo 0) -lt 10 ] && \
+  echo "[$(date '+%Y-%m-%d %H:%M')] [项目:Template-XXX] AAF [旧版本] → [新版本] | 文件 X 个，依赖 Y 项 | 编译：成功/失败" >> "$CACHE_DIR/history.log"
 ```
 
 ## 负面反馈记录（E3 数据飞轮）
 
-当用户指出升级问题（如版本号错误、遗漏文件、编译失败根因）时，将反馈追加到 `~/.codebuddy/cache/aaf-sample-updater/corrections.log`：
+当用户指出升级问题（如版本号错误、遗漏文件、编译失败根因）时，将反馈追加到 `{INSTANCE_CACHE}/aaf-sample-updater/corrections.log`：
 
 ```
 [日期] [项目:XXX] [类型:版本错误/遗漏文件/编译修复] 用户反馈：XXX → 修正方案：YYY

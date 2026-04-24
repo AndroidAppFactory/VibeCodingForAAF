@@ -23,9 +23,9 @@ enabledAutoRun: true
 
 ## 规则依赖
 
-| 规则 | 级别 | read_rules key | fallback 路径（AIConfig） | fallback 路径（.codebuddy） |
-|------|------|----------------|------------------------|---------------------------|
-| AAF 通用规范 | 必须 | `aaf-dev/aaf_common` | `rules/aaf/aaf_common.mdc` | `.codebuddy/rules/aaf_common.mdc` |
+| 规则 | 级别 | read_rules key | fallback 路径 |
+|------|------|----------------|---------------|
+| AAF 通用规范 | 必须 | `aaf-dev/aaf_common` | `{WORK_ROOT}/github/AIConfig/rules/aaf/aaf_common.mdc` |
 
 ## 查找策略
 
@@ -108,27 +108,31 @@ test -d "[path]" && test -f "[path]/build.gradle" -o -f "[path]/settings.gradle"
 
 ## 历史归档（E2 记忆与复盘）
 
-每次执行完成后，将摘要追加到 `~/.codebuddy/cache/aaf-project-finder/history.log`：
+> **缓存路径变量**：`{INSTANCE_CACHE}` = `{WORK_ROOT}/github/AIConfig/instances/{AI_NAME}/cache`
+
+每次执行完成后，将摘要追加到 `{INSTANCE_CACHE}/aaf-project-finder/history.log`：
 
 ```bash
-mkdir -p ~/.codebuddy/cache/aaf-project-finder
-[ $(wc -l < ~/.codebuddy/cache/aaf-project-finder/history.log 2>/dev/null || echo 0) -lt 10 ] && \
-  echo "[$(date '+%Y-%m-%d %H:%M')] 查找 X 个项目 → 找到 Y 个 | 路径摘要：AAF=[path], Template-AAF=[path], ..." >> ~/.codebuddy/cache/aaf-project-finder/history.log
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-project-finder"
+mkdir -p "$CACHE_DIR"
+[ $(wc -l < "$CACHE_DIR/history.log" 2>/dev/null || echo 0) -lt 10 ] && \
+  echo "[$(date '+%Y-%m-%d %H:%M')] 查找 X 个项目 → 找到 Y 个 | 路径摘要：AAF=[path], Template-AAF=[path], ..." >> "$CACHE_DIR/history.log"
 ```
 
 ## 负面反馈记录（E3 数据飞轮）
 
-当用户指出路径错误（如找到的不是正确项目、遗漏项目）时，将反馈追加到 `~/.codebuddy/cache/aaf-project-finder/corrections.log`：
+当用户指出路径错误（如找到的不是正确项目、遗漏项目）时，将反馈追加到 `{INSTANCE_CACHE}/aaf-project-finder/corrections.log`：
 
 ```bash
-mkdir -p ~/.codebuddy/cache/aaf-project-finder
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-project-finder"
+mkdir -p "$CACHE_DIR"
 echo "[$(date '+%Y-%m-%d %H:%M')] 类型: {路径错误|遗漏项目}
 项目: <项目名>
 用户反馈: <正确路径应为 XXX>
----" >> ~/.codebuddy/cache/aaf-project-finder/corrections.log
+---" >> "$CACHE_DIR/corrections.log"
 ```
 
-执行前**应读取** `~/.codebuddy/cache/aaf-project-finder/corrections.log`（如存在），优先使用历史确认的正确路径。
+执行前**应读取** `{INSTANCE_CACHE}/aaf-project-finder/corrections.log`（如存在），优先使用历史确认的正确路径。
 
 ## 人机协作（E7）
 

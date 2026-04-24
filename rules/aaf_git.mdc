@@ -8,7 +8,7 @@ provider: zixie(code@bihe0832)
 
 # AAF Git Scope 补充
 
-> 通用 Git 规范见 user 级 `zixie_git.mdc`（`git-rules/zixie_git`，fallback: `~/zixie/github/AIConfig/rules/dev/zixie_git.mdc`），本文件仅补充 AAF 项目专属 Scope。
+> 通用 Git 规范见 user 级 `zixie_git.mdc`（`git-rules/zixie_git`，fallback: `{WORK_ROOT}/github/AIConfig/rules/dev/zixie_git.mdc`），本文件仅补充 AAF 项目专属 Scope。
 
 ## AAF 常用 Scope
 

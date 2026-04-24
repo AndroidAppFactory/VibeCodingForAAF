@@ -18,9 +18,9 @@ enabledAutoRun: true
 
 ## 规则依赖
 
-| 规则 | 级别 | read_rules key | fallback 路径（AIConfig） | fallback 路径（.codebuddy） |
-|------|------|----------------|------------------------|---------------------------|
-| AAF 文档巡检规则 | 必须 | `aaf-dev/aaf_cmd_doc_inspection` | `rules/aaf/aaf_cmd_doc_inspection.mdc` | `.codebuddy/rules/aaf_cmd_doc_inspection.mdc` |
+| 规则 | 级别 | read_rules key | fallback 路径 |
+|------|------|----------------|---------------|
+| AAF 文档巡检规则 | 必须 | `aaf-dev/aaf_cmd_doc_inspection` | `{WORK_ROOT}/github/AIConfig/rules/aaf/aaf_cmd_doc_inspection.mdc` |
 
 ## 输入
 
@@ -36,10 +36,13 @@ enabledAutoRun: true
 
 ### Step 0：读取历史记录与纠正反馈
 
+> **缓存路径变量**：`{INSTANCE_CACHE}` = `{WORK_ROOT}/github/AIConfig/instances/{AI_NAME}/cache`
+
 ```bash
 # 读取纠正记录（若存在），避免重复犯同类错误
-if [ -f ~/.codebuddy/cache/aaf-doc-generator/corrections.log ]; then
-  tail -12 ~/.codebuddy/cache/aaf-doc-generator/corrections.log
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-doc-generator"
+if [ -f "$CACHE_DIR/corrections.log" ]; then
+  tail -12 "$CACHE_DIR/corrections.log"
 fi
 ```
 
@@ -225,17 +228,18 @@ git diff $LAST_TAG HEAD -- [module]/src/main/
 
 ## 历史归档（E2 记忆与复盘）
 
-每次执行完成后，将摘要追加到 `~/.codebuddy/cache/aaf-doc-generator/history.log`：
+每次执行完成后，将摘要追加到 `{INSTANCE_CACHE}/aaf-doc-generator/history.log`：
 
 ```bash
-mkdir -p ~/.codebuddy/cache/aaf-doc-generator
-[ $(wc -l < ~/.codebuddy/cache/aaf-doc-generator/history.log 2>/dev/null || echo 0) -lt 10 ] && \
-  echo "[$(date '+%Y-%m-%d %H:%M')] [模式:generate/update] [模块:XXX] 扫描 X 文件 → 生成/更新 Y 文档 | 状态：成功/失败" >> ~/.codebuddy/cache/aaf-doc-generator/history.log
+CACHE_DIR="${WORK_ROOT}/github/AIConfig/instances/${AI_NAME}/cache/aaf-doc-generator"
+mkdir -p "$CACHE_DIR"
+[ $(wc -l < "$CACHE_DIR/history.log" 2>/dev/null || echo 0) -lt 10 ] && \
+  echo "[$(date '+%Y-%m-%d %H:%M')] [模式:generate/update] [模块:XXX] 扫描 X 文件 → 生成/更新 Y 文档 | 状态：成功/失败" >> "$CACHE_DIR/history.log"
 ```
 
 ## 负面反馈记录（E3 数据飞轮）
 
-当用户指出文档有误（如 API 遗漏、描述不准确、格式问题）时，将反馈追加到 `~/.codebuddy/cache/aaf-doc-generator/corrections.log`：
+当用户指出文档有误（如 API 遗漏、描述不准确、格式问题）时，将反馈追加到 `{INSTANCE_CACHE}/aaf-doc-generator/corrections.log`：
 
 ```
 [日期] [类型:API遗漏/描述错误/格式问题] [模块:XXX] 用户反馈：XXX → 已修正
