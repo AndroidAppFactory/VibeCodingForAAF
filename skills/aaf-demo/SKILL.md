@@ -2,7 +2,7 @@
 
 
 name: aaf-demo
-version: 1
+version: 2
 category: aaf
 description: AAF Demo 开发助手。当用户说"AAF-demo"、"AAF-Temp"时使用此 skill
 

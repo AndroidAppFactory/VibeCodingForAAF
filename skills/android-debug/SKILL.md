@@ -2,7 +2,7 @@
 
 
 
-version: 1
+version: 2
 category: android
 name: android-debug
 description: Android 代码调试助手 - LLM 主导的代码调试分析。负责理解代码、添加日志、分析日志、给出修复建议

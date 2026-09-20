@@ -106,12 +106,17 @@ function showScreenshot(index) {
   const phoneScreen = document.getElementById('phone-screen');
 
   if (index < 0 || !state.events[index] || !state.events[index].screenshots) {
-    switchEl.style.display = 'none';
+    // 无截图：禁用前/后按钮，但保留栏（旋转按钮始终可用）
+    document.getElementById('btn-ss-before').disabled = true;
+    document.getElementById('btn-ss-after').disabled = true;
+    document.getElementById('screenshot-label').textContent = '无截屏';
     clearPhoneMedia();
     return;
   }
 
   const ss = state.events[index].screenshots;
+  document.getElementById('btn-ss-before').disabled = false;
+  document.getElementById('btn-ss-after').disabled = false;
   switchEl.style.display = 'flex';
 
   const path = getScreenshotPath(index, currentScreenshotView, ss);

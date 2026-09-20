@@ -42,6 +42,7 @@ def build_parser(
     p_play = subs.add_parser("play", help="回放素材确认")
     p_play.add_argument("target", help="录制目录路径或名称")
     p_play.add_argument("--speed", type=float, default=1.0, help="速度倍率（默认 1.0）")
+    p_play.add_argument("--max-delay", type=float, default=None, help="单步等待上限（秒，超过则截断）")
     p_play.add_argument("--repeat", "-r", type=int, default=1, help="重复次数（默认 1）")
     p_play.add_argument("--screenshot-duration", type=float, default=1.0, help="截图间隔秒数（默认 1.0）")
     if add_platform_args:
@@ -55,6 +56,7 @@ def build_parser(
     p_run = flow_subs.add_parser("run", help="运行 Flow")
     p_run.add_argument("id", help="Flow ID")
     p_run.add_argument("--speed", type=float, default=1.0, help="速度倍率")
+    p_run.add_argument("--max-delay", type=float, default=None, help="单步等待上限（秒，超过则截断）")
     p_run.add_argument("--step", type=str, default=None, help="步骤选择（如 1,3,5-8）")
     p_run.add_argument("--fail-fast", action="store_true", help="遇错即停")
     p_run.add_argument("--rerun", action="store_true", help="复用上次目录重跑")
@@ -65,6 +67,8 @@ def build_parser(
     # flow report
     p_freport = flow_subs.add_parser("report", help="重新生成 Flow 报告")
     p_freport.add_argument("id", help="Flow ID")
+    p_freport.add_argument("--layout", choices=["compare", "order"], default="order",
+                           help="关键图拼图布局：order=按执行顺序排列（默认），compare=相同步骤前后对比")
 
     # ── init ──
     p_init = subs.add_parser("init", help="初始化环境（安装平台依赖：adb:zinput / web:playwright）")
@@ -76,9 +80,16 @@ def build_parser(
     if add_platform_args:
         add_platform_args(p_doctor, "doctor")
 
+    # ── install ──
+    p_install = subs.add_parser("install", help="安装平台依赖（adb:zinput / web:playwright）")
+    if add_platform_args:
+        add_platform_args(p_install, "install")
+
     # ── report ──
     p_report = subs.add_parser("report", help="对已有运行产物重生成报告")
     p_report.add_argument("run_dir", help="运行产物目录路径")
+    p_report.add_argument("--layout", choices=["compare", "order"], default="order",
+                          help="关键图拼图布局：order=按执行顺序排列（默认），compare=相同步骤前后对比")
 
     # ── edit ──
     p_edit = subs.add_parser("edit", help="打开录制素材编辑器（Web 管理界面）")
@@ -208,52 +219,153 @@ def generate_merge_video_script(base_dir: str, media_paths: list, screenshot_dur
 # ── 后续命令提示（双格式：zk + python3）──
 
 
+def _tip(icon: str, label: str) -> None:
+    """提示标题行：emoji + 标题（命令在下一行，避免 emoji 宽度影响对齐）"""
+    print(f"{icon} {label}")
+
+
+def _cmd(command: str) -> None:
+    """命令行：统一 3 空格缩进"""
+    print(f"   {command}")
+
+
+def _format_step_indices(indices: list) -> str:
+    """把步骤序号列表转回 --step 参数格式（连续区间合并、逗号分隔）。"""
+    s = sorted(set(indices))
+    ranges = []
+    start = prev = s[0]
+    for i in s[1:]:
+        if i == prev + 1:
+            prev = i
+        else:
+            ranges.append(f"{start}-{prev}" if start != prev else str(start))
+            start = prev = i
+    ranges.append(f"{start}-{prev}" if start != prev else str(start))
+    return ",".join(ranges)
+
+
+def build_run_command(flow_id: str, *,
+                      speed: float = 1.0, max_delay: float | None = None,
+                      step_indices: list | None = None,
+                      fail_fast: bool = False, rerun: bool = False) -> str:
+    """构造完整的 flow run 命令（含非默认运行时参数）。
+
+    平台由 `zk replay run` 根据 Flow 的 platform 字段自动解析，无需显式指定。
+    """
+    fid = flow_id[:4] if len(flow_id) > 4 else flow_id
+    parts = [f"zk replay run {fid}"]
+    if speed and abs(speed - 1.0) > 1e-9:
+        parts.append(f"--speed {speed:g}")
+    if max_delay is not None:
+        parts.append(f"--max-delay {max_delay:g}")
+    if step_indices:
+        parts.append(f"--step {_format_step_indices(step_indices)}")
+    if fail_fast:
+        parts.append("--fail-fast")
+    if rerun:
+        parts.append("--rerun")
+    return " ".join(parts)
+
+
 def tips_after_record(platform: str, record_dir: str, script_path: str = "") -> None:
     """录制结束后的提示"""
-    prefix = f"zk replay"
     print(f"\n💡 后续命令：")
-    print(f"   ▶️  回放确认:     {prefix} play {record_dir}")
+    _tip("▶️", "回放确认")
+    _cmd(f"zk replay play {record_dir}")
     if script_path:
-        print(f"                   python3 {script_path} play {record_dir}")
-    print(f"   ✏️  编辑:         {prefix} edit {record_dir}")
+        _cmd(f"python3 {script_path} play {record_dir}")
+    _tip("✏️", "编辑")
+    _cmd(f"zk replay edit {record_dir}")
     if script_path:
-        print(f"                   python3 {script_path} edit {record_dir}")
-    print(f"   🖥️  管理器:       zk replay flow manage")
+        _cmd(f"python3 {script_path} edit {record_dir}")
+    _tip("🖥️", "管理器")
+    _cmd("zk replay manage")
     if script_path:
-        print(f"                   python3 {script_path} flow manage")
+        _cmd(f"python3 {script_path} flow manage")
 
 
 def tips_after_play(platform: str, record_dir: str, script_path: str = "") -> None:
     """回放确认后的提示"""
     print(f"\n💡 后续命令：")
-    print(f"   ▶️  再次回放:     zk replay play {record_dir}")
+    _tip("▶️", "再次回放")
+    _cmd(f"zk replay play {record_dir}")
     if script_path:
-        print(f"                   python3 {script_path} play {record_dir}")
-    print(f"   ✏️  编辑:         zk replay edit {record_dir}")
+        _cmd(f"python3 {script_path} play {record_dir}")
+    _tip("✏️", "编辑")
+    _cmd(f"zk replay edit {record_dir}")
     if script_path:
-        print(f"                   python3 {script_path} edit {record_dir}")
-    print(f"   🖥️  管理器:       zk replay flow manage  （发布为 Flow / 编辑）")
+        _cmd(f"python3 {script_path} edit {record_dir}")
+    _tip("🖥️", "管理器")
+    _cmd("zk replay manage  （发布为 Flow / 编辑）")
     if script_path:
-        print(f"                   python3 {script_path} flow manage")
+        _cmd(f"python3 {script_path} flow manage")
 
 
 def tips_after_flow_run(platform: str, flow_id: str, script_path: str = "", report_path: str = "", merge_script: str = "") -> None:
     """Flow 运行结束后的提示"""
+    import os
+    # mixed 模式下子 flow 的「再次运行」会指向子 flow 而非 mixed flow，误导用户；由 mixed 主进程统一提示
+    if os.environ.get("REPLAY_MIXED_MODE") == "1":
+        return
     fid = flow_id[:4] if len(flow_id) > 4 else flow_id
     print(f"\n💡 后续命令:")
-    print(f"   ▶️  再次运行:     zk replay flow run {fid}")
+    _tip("▶️", "再次运行")
+    _cmd(f"zk replay run {fid}")
     if script_path:
-        print(f"                   python3 {script_path} flow run {fid}")
-    print(f"   📊 重新生成报告: zk replay flow report {fid}")
+        _cmd(f"python3 {script_path} flow run {fid}")
+    _tip("📊", "重新生成报告")
+    _cmd(f"按顺序（默认）: zk replay report {fid}")
+    _cmd(f"前后对比: zk replay report {fid} --layout compare")
     if script_path:
-        print(f"                   python3 {script_path} flow report {fid}")
-    print(f"   🖥️  管理器:       zk replay flow manage")
+        _cmd(f"python3 {script_path} flow report {fid}")
+        _cmd(f"python3 {script_path} flow report {fid} --layout compare")
+    _tip("🖥️", "管理器")
+    _cmd("zk replay manage")
     if script_path:
-        print(f"                   python3 {script_path} flow manage")
+        _cmd(f"python3 {script_path} flow manage")
     if report_path:
-        print(f"   📂 打开报告:     open {report_path}")
+        _tip("📂", "打开报告")
+        _cmd(f"open {report_path}")
     if merge_script:
-        print(f"   🎬 合成视频:     bash {merge_script}")
+        _tip("🎬", "合成视频")
+        _cmd(f"bash {merge_script}")
+    _tips_runs_cleanup()
+
+
+def _tips_runs_cleanup(threshold_mb: int = 1024) -> None:
+    """Flow 运行结束后检查：运行记录占用磁盘超过阈值时提醒清理"""
+    import os
+    from core.config import FLOW_RUNS_DIR
+
+    if not FLOW_RUNS_DIR.exists():
+        return
+    total = _dir_size(FLOW_RUNS_DIR)
+    if total > threshold_mb * 1024 * 1024:
+        print(f"\n🧹 运行记录占用 {_fmt_size(total)}（> {threshold_mb} MB），建议清理:")
+        print(f"   zk replay clean --days 7 --yes")
+        print(f"   （或先 zk replay clean 做 dry-run 预览）")
+
+
+def _dir_size(d) -> int:
+    """目录总大小（字节），纯 Python os.walk 遍历，跨平台无外部依赖"""
+    import os
+    total = 0
+    for root, _dirs, files in os.walk(d):
+        for name in files:
+            try:
+                total += os.path.getsize(os.path.join(root, name))
+            except OSError:
+                pass
+    return total
+
+
+def _fmt_size(n: int) -> str:
+    """字节数格式化为可读单位"""
+    for unit in ("B", "KB", "MB", "GB"):
+        if n < 1024:
+            return f"{int(n)} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} TB"
 
 
 def tips_after_flow_manage(platform: str, flow_id: str = "", script_path: str = "") -> None:
@@ -261,20 +373,37 @@ def tips_after_flow_manage(platform: str, flow_id: str = "", script_path: str = 
     print(f"\n💡 后续命令:")
     if flow_id:
         fid = flow_id[:4] if len(flow_id) > 4 else flow_id
-        print(f"   ▶️  运行 Flow:    zk replay flow run {fid}")
+        _tip("▶️", "运行 Flow")
+        _cmd(f"zk replay run {fid}")
         if script_path:
-            print(f"                   python3 {script_path} flow run {fid}")
-    print(f"   🎬 录制:         zk replay {platform} record")
+            _cmd(f"python3 {script_path} flow run {fid}")
+    _tip("🎬", "录制")
+    _cmd("zk replay record {adb|web|win}")
     if script_path:
-        print(f"                   python3 {script_path} record")
+        _cmd(f"python3 {script_path} record")
 
 
 def tips_after_flow_save(flow_id: str) -> None:
     """Flow 保存后的提示（从 Web 管理界面保存时输出到终端）"""
+    from core.config import SCRIPTS_DIR
     fid = flow_id[:4] if len(flow_id) > 4 else flow_id
     print(f"\n💡 后续命令：")
-    print(f"   ▶️  运行 Flow:    zk replay flow run {fid}")
-    print(f"   ✏️  继续编排:     zk replay flow manage")
+    _tip("▶️", "运行 Flow")
+    _cmd(f"zk replay run {fid}")
+    _cmd(f"python3 {SCRIPTS_DIR}/{{adb|web|win|mac}}/cli/main.py flow run {fid}")
+    _tip("✏️", "继续编排")
+    _cmd("zk replay manage")
+    _cmd(f"python3 {SCRIPTS_DIR}/{{adb|web|win|mac}}/cli/main.py flow manage")
+
+
+def tips_report_layout(fid: str) -> None:
+    """report 命令结果末尾：提示两种拼图布局模式"""
+    from core.config import SCRIPTS_DIR
+    _tip("🔄", "切换布局")
+    _cmd(f"按顺序（默认）: zk replay report {fid} --layout order")
+    _cmd(f"前后对比: zk replay report {fid} --layout compare")
+    _cmd(f"python3 {SCRIPTS_DIR}/{{adb|web|win|mac}}/cli/main.py flow report {fid} --layout order")
+    _cmd(f"python3 {SCRIPTS_DIR}/{{adb|web|win|mac}}/cli/main.py flow report {fid} --layout compare")
 
 
 # ── 日志工具 ──

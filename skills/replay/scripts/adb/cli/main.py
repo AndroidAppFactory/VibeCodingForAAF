@@ -6,7 +6,11 @@ import sys
 from pathlib import Path
 
 # 加载环境变量
-sys.path.insert(0, str(Path.home() / ".zixiekit" / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 from bootstrap import load_env  # noqa: E402
 
 load_env()
@@ -78,6 +82,10 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_flow_report(args)
 
     elif args.command == "init":
+        from cli.cmd_init import cmd_install
+        return cmd_install(args)
+
+    elif args.command == "install":
         from cli.cmd_init import cmd_install
         return cmd_install(args)
 

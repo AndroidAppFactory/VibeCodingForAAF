@@ -1,7 +1,7 @@
 ---
 
 
-version: 1
+version: 2
 category: aaf
 name: aaf-doc-generator
 description: AAF 文档生成代理。分析模块源码生成 AI 编码参考文档，强调 API 签名的完整性和约束条件的精确性

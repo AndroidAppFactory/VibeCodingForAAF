@@ -385,8 +385,8 @@ def get_agp_tier(version: str) -> Optional[str]:
     """根据 AGP 版本返回所在区间，用于给出精确的修复建议
 
     返回:
-      "8.5.1+"  — AGP ≥ 8.5.1，useLegacyPackaging = false 即可（官方根治方案）
-      "8.3-8.5" — AGP 8.3~8.5（含 8.5.0），bundletool 有 zipalign 缺陷，必须 useLegacyPackaging = true
+      "8.5.1+"  — AGP ≥ 8.5.1，写入 PAGE_ALIGNMENT_16K，useLegacyPackaging = false 即可（官方根治方案）
+      "8.3-8.5" — AGP 8.3~8.5（含 8.5.0），未写入 PAGE_ALIGNMENT_16K，必须 useLegacyPackaging = true 规避
       "<8.3"    — AGP < 8.3，同上问题且需额外加 enableUncompressedNativeLibs=false
       None      — 解析失败
     """

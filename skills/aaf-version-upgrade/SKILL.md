@@ -1,7 +1,7 @@
 ---
 
 
-version: 1
+version: 2
 category: aaf
 name: aaf-version-upgrade
 description: AAF 依赖版本升级。通过 aaf CLI 工具识别项目中所有 AAF 模块，查找最新版本，展示升级报告，用户确认后执行更新。当用户说"升级AAF版本"时使用此 skill

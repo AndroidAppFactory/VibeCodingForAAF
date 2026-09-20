@@ -49,6 +49,9 @@ def _event_to_step(ev: dict) -> dict:
     if t == "tap":
         step["x"] = ev.get("x", 0)
         step["y"] = ev.get("y", 0)
+    elif t == "multitap":
+        step["x"] = ev.get("x", 0); step["y"] = ev.get("y", 0)
+        step["count"] = ev.get("count", 2)
     elif t == "swipe":
         step["x1"] = ev.get("x1", 0); step["y1"] = ev.get("y1", 0)
         step["x2"] = ev.get("x2", 0); step["y2"] = ev.get("y2", 0)

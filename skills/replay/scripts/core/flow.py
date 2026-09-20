@@ -240,13 +240,12 @@ def resolve_steps_recursive(
                 if step.get("is_critical"):
                     for s in expanded:
                         s["is_critical"] = True
-                # 为展开的子步骤追加元数据（setdefault 保留内层递归已设的值，避免多层嵌套时覆盖最内层 flow 名）
+                # 为展开的子步骤追加元数据（setdefault 保留子层已设的 flow 归属与
+                # _sub_index/_sub_total，使 _sub_index 保持"所属 flow 内序号"而非父层全局序号）
                 for s in expanded:
                     s.setdefault("_flow_name", ref_name)
                     s.setdefault("_flow_id", ref_id)
                     s.setdefault("_platform", ref_platform)
-                    sub_idx += 1
-                    s["_sub_index"] = sub_idx
                     result.append(s)
             continue
 
@@ -267,6 +266,12 @@ def resolve_steps_recursive(
         sub_idx += 1
         step_copy["_sub_index"] = sub_idx
         result.append(step_copy)
+
+    # 为本层直接产生的原子步骤补齐 _sub_total（= 本层原子步骤数）。
+    # ref 展开的子步骤其 _sub_total 已在子层递归时设置，此处按 _flow_id 区分跳过。
+    for s in result:
+        if _flow_id and s.get("_flow_id") == _flow_id and s.get("_sub_index"):
+            s["_sub_total"] = sub_idx
 
     return result
 
@@ -435,6 +440,20 @@ def delete_group(group_id: str) -> bool:
         return False
     _save_groups_raw(new_groups)
     return True
+
+
+def pin_group(group_id: str, pinned: bool) -> bool:
+    """置顶/取消置顶分组，返回是否成功"""
+    groups = _load_groups_raw()
+    for g in groups:
+        if g.get("id") == group_id:
+            if pinned:
+                g["pinned"] = True
+            else:
+                g.pop("pinned", None)
+            _save_groups_raw(groups)
+            return True
+    return False
 
 
 def find_or_create_group(name: str) -> str:

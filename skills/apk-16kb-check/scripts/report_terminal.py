@@ -58,9 +58,10 @@ def print_result(result: CheckResult) -> None:
     """在终端输出检查结果"""
     c = Colors
     is_aar = bool(result.source_aar_paths)
+    is_aab = Path(result.file_path).suffix.lower() == '.aab'
 
     print("=" * 44)
-    print(" APK/AAR 16KB 对齐检查工具")
+    print(" APK/AAB/AAR 16KB 对齐检查工具")
     print("=" * 44)
     print()
     if is_aar:
@@ -70,6 +71,8 @@ def print_result(result: CheckResult) -> None:
         file_ext = Path(result.file_path).suffix.lower()
         if file_ext == '.so':
             file_type_label = "SO 文件"
+        elif file_ext == '.aab':
+            file_type_label = "AAB 文件"
         elif file_ext == '.aar':
             file_type_label = "AAR 文件"
         else:
@@ -77,6 +80,32 @@ def print_result(result: CheckResult) -> None:
         print(f"{file_type_label}: {result.file_path}")
     print(f"文件大小: {result.file_size}")
     print()
+
+    # AAB 模式：dump config 前置判断（uncompressNativeLibraries + PAGE_ALIGNMENT 标记 → 根因）
+    if is_aab and result.bundletool_available:
+        print("=" * 44)
+        print(" AAB 打包配置判读 (bundletool dump config)")
+        print("=" * 44)
+        if result.uncompress_native_libraries is not None:
+            uncompress = result.uncompress_native_libraries
+            if uncompress:
+                print(f" uncompressNativeLibraries: {c.YELLOW}enabled=true{c.NC}（未压缩存储，需 16K ZIP 对齐）")
+            else:
+                print(f" uncompressNativeLibraries: {c.GREEN}enabled=false{c.NC}（压缩存储，不涉及 ZIP 对齐）")
+        if result.page_alignment == '16K':
+            print(f" ZIP 对齐标记: {c.GREEN}PAGE_ALIGNMENT_16K{c.NC}（请求 16K 对齐）")
+        elif result.page_alignment == '4K':
+            print(f" ZIP 对齐标记: {c.RED}PAGE_ALIGNMENT_4K{c.NC}（仅 4K 对齐，不满足 16K）")
+        else:
+            print(f" ZIP 对齐标记: {c.RED}缺失（bundletool 默认 4K 对齐，不满足 16K）{c.NC}")
+        if result.bundletool_version:
+            print(f" AAB 内置 bundletool 版本: {result.bundletool_version}（AGP 内置，仅参考）")
+        # 根因判读：未压缩存储 + 无 PAGE_ALIGNMENT_16K → AGP < 8.5.1
+        if result.uncompress_native_libraries and result.page_alignment != '16K':
+            print(f" {c.RED}⚠️ 前置判断命中：未压缩原生库但 AAB 未请求 16K 对齐{c.NC}")
+            print(f" {c.RED}   根因：AGP < 8.5.1 打包 AAB 时未写入 PAGE_ALIGNMENT_16K 标记{c.NC}")
+            print(f" {c.RED}   修复：升级 AGP ≥ 8.5.1，或设 useLegacyPackaging = true（压缩存储规避）{c.NC}")
+        print()
 
     # 压缩存储提示
     if result.has_compressed_so:
@@ -90,10 +119,11 @@ def print_result(result: CheckResult) -> None:
     is_aar = bool(result.source_aar_paths)
     is_so = (result.zipalign.status == "exempt" and result.zipalign.summary == "SO 文件无需 zipalign 检查")
     all_pass = (result.zipalign.status != "fail" and result.elf_failed == 0 and not result.has_compressed_so)
-    if all_pass and not is_aar and not is_so:
+    if all_pass and not is_aar and not is_so and not is_aab:
         print(f"{c.CYAN}💡 注意：本地独立 APK 对齐通过 ≠ 该项目发布用的 .aab 对齐{c.NC}")
         print(f"{c.CYAN}   assembleRelease 直接产出的 APK 与 bundleRelease → bundletool 生成的 universal/split APK 走的是不同打包路径。{c.NC}")
         print(f"{c.CYAN}   即使本地 APK 的 ELF 段对齐正常，bundletool 生成的分发 APK 仍可能出现 ZIP 层 offset 未按 16K 对齐。{c.NC}")
+        print(f"{c.CYAN}   常见根因：AGP < 8.5.1 打包 AAB 时缺少 16K 对齐元数据（PAGE_ALIGNMENT_16K）。{c.NC}")
         print(f"{c.CYAN}   建议：如果项目通过 Google Play AAB 分发，请额外检查 bundletool 生成的 APK。{c.NC}")
         print()
 
@@ -104,7 +134,13 @@ def print_result(result: CheckResult) -> None:
     if result.zipalign.available:
         color = c.GREEN if result.zipalign.status == "pass" else c.RED
         print(f" {color}{result.zipalign.summary}{c.NC}")
+        if result.zipalign.version:
+            print(f" zipalign 版本: Build-Tools {result.zipalign.version}")
         print(f" 通过: {result.zipalign.ok_count}, 失败: {result.zipalign.fail_count}")
+        if not result.zipalign.version_ok:
+            print(f" {c.RED}⚠️ zipalign 版本过低（Build-Tools {result.zipalign.version or '未知'} < 35.0.0-rc3）{c.NC}")
+            print(f" {c.RED}   旧版 zipalign 没有 -P 16 参数，无法正确验证 16KB 对齐。{c.NC}")
+            print(f" {c.YELLOW}   请升级 build-tools 到 35.0.0-rc3+（sdkmanager \"build-tools;35.0.0\"）以正确验证。{c.NC}")
     else:
         print(f" {c.YELLOW}{result.zipalign.summary}{c.NC}")
         print(f" {c.YELLOW}请确保 ANDROID_HOME 环境变量已设置且 Build-Tools 已安装{c.NC}")
@@ -117,10 +153,14 @@ def print_result(result: CheckResult) -> None:
         if fixable or unfixable:
             print()
             if fixable:
-                print(f" {c.YELLOW}📦 zipalign 可修复（ZIP 偏移未对齐，ELF 段正常）: {len(fixable)} 个{c.NC}")
+                if is_aab:
+                    print(f" {c.RED}📦 ZIP 偏移未对齐（ELF 段正常）: {len(fixable)} 个{c.NC}")
+                    print(f" {c.RED}   AAB 无法用 zipalign 直接修复，需重新 bundleRelease（见上方配置判读）{c.NC}")
+                else:
+                    print(f" {c.YELLOW}📦 zipalign 可修复（ZIP 偏移未对齐，ELF 段正常）: {len(fixable)} 个{c.NC}")
                 fixable_sorted = sorted(fixable, key=lambda x: x.file_path)
                 for entry in fixable_sorted:
-                    print(f"   {c.YELLOW}• {entry.file_path} ({entry.detail}){c.NC}")
+                    print(f"   {c.YELLOW if not is_aab else c.RED}• {entry.file_path} ({entry.detail}){c.NC}")
             if unfixable:
                 print(f" {c.RED}🔧 需重新编译（ELF LOAD 段未 16KB 对齐，zipalign 无法修复）: {len(unfixable)} 个{c.NC}")
                 unfixable_sorted = sorted(unfixable, key=lambda x: x.file_path)
@@ -220,7 +260,20 @@ def print_result(result: CheckResult) -> None:
         if file_ext == '.so':
             print(f" {c.YELLOW}SO 文件检查结果{c.NC}")
         else:
-            print(f" {c.YELLOW}APK 中未找到 .so 文件{c.NC}")
+            script_output = result.elf_script_output or ""
+            # 区分「检查失败」与「确实无 .so」：脚本超时/出错/异常退出时输出真实原因
+            failure_markers = ("超时", "出错", "退出码", "ERROR", "Failed")
+            if any(m in script_output for m in failure_markers):
+                key_line = ""
+                for ln in script_output.splitlines():
+                    if any(m in ln for m in failure_markers):
+                        key_line = ln.strip()
+                        break
+                if not key_line:
+                    key_line = script_output.strip()
+                print(f" {c.YELLOW}⚠️ ELF 段检查失败：{key_line}{c.NC}")
+            else:
+                print(f" {c.YELLOW}APK 中未找到 .so 文件{c.NC}")
         print()
 
     # AGP 版本 / useLegacyPackaging 修复方案（统一放在检查结果之后）
@@ -232,26 +285,26 @@ def print_result(result: CheckResult) -> None:
         if result.agp_config_source:
             print(f" 配置来源: {result.agp_config_source}")
         if tier == "8.5.1+":
-            print(f" {c.GREEN}✅ AGP {result.agp_version} ≥ 8.5.1，bundletool zipalign 缺陷已官方修复{c.NC}")
+            print(f" {c.GREEN}✅ AGP {result.agp_version} ≥ 8.5.1，已写入 PAGE_ALIGNMENT_16K（官方根治方案）{c.NC}")
             if result.use_legacy_packaging is False:
-                print(f" {c.GREEN}   useLegacyPackaging = false（官方根治方案，非压缩存储 + 正确对齐）{c.NC}")
+                print(f" {c.GREEN}   useLegacyPackaging = false（官方根治方案，非压缩存储 + 16K 对齐）{c.NC}")
         elif tier == "8.3-8.5":
             if result.use_legacy_packaging is True:
-                print(f" {c.GREEN}✅ AGP {result.agp_version}（8.3~8.5 区间），已设置 useLegacyPackaging = true 规避 bundletool 缺陷{c.NC}")
+                print(f" {c.GREEN}✅ AGP {result.agp_version}（8.3~8.5 区间），已设置 useLegacyPackaging = true（压缩存储规避）{c.NC}")
                 print(f" {c.YELLOW}   提示: 升级 AGP ≥ 8.5.1 后可改为 false（官方根治方案）{c.NC}")
             else:
                 print(f" {c.RED}⚠️  已知坑：AGP {result.agp_version}（8.3~8.5 区间），且未设置 useLegacyPackaging = true{c.NC}")
-                print(f" {c.RED}   本地打包对齐正常，但 bundletool 从 .aab 构建分发 APK 时存在 zipalign 缺陷{c.NC}")
+                print(f" {c.RED}   本地打包对齐正常，但 AGP < 8.5.1 未写入 PAGE_ALIGNMENT_16K，bundletool 只做 4K 对齐{c.NC}")
                 print(f" {c.YELLOW}   必须项: 在 build.gradle 中设置 useLegacyPackaging = true{c.NC}")
                 print(f" {c.YELLOW}   根治方案: 升级 AGP ≥ 8.5.1{c.NC}")
         elif tier == "<8.3":
             if result.use_legacy_packaging is True:
-                print(f" {c.GREEN}✅ AGP {result.agp_version}（< 8.3），已设置 useLegacyPackaging = true 规避 bundletool 缺陷{c.NC}")
+                print(f" {c.GREEN}✅ AGP {result.agp_version}（< 8.3），已设置 useLegacyPackaging = true（压缩存储规避）{c.NC}")
                 print(f" {c.YELLOW}   提示: 还需确认 gradle.properties 中有 android.bundle.enableUncompressedNativeLibs=false{c.NC}")
                 print(f" {c.YELLOW}   根治方案: 升级 AGP ≥ 8.5.1{c.NC}")
             else:
-                print(f" {c.RED}⚠️  已知坑：AGP {result.agp_version}（< 8.3），存在 bundletool zipalign 缺陷{c.NC}")
-                print(f" {c.RED}   bundletool 从 .aab 构建的分发 APK 可能出现 zipalign 未按 16K 对齐{c.NC}")
+                print(f" {c.RED}⚠️  已知坑：AGP {result.agp_version}（< 8.3），未写入 PAGE_ALIGNMENT_16K{c.NC}")
+                print(f" {c.RED}   bundletool 从 .aab 构建的分发 APK 只做 4K 对齐，不满足 16K{c.NC}")
                 print(f" {c.YELLOW}   必须项 1: 在 build.gradle 中设置 useLegacyPackaging = true{c.NC}")
                 print(f" {c.YELLOW}   必须项 2: 在 gradle.properties 中加 android.bundle.enableUncompressedNativeLibs=false{c.NC}")
                 print(f" {c.YELLOW}   根治方案: 升级 AGP ≥ 8.5.1{c.NC}")

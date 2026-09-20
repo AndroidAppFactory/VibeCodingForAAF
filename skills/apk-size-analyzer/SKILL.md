@@ -2,7 +2,7 @@
 
 
 
-version: 1
+version: 2
 category: android
 name: apk-size-analyzer
 description: APK 体积分析与瘦身助手 - 分析 APK/AAB/AAR 的体积构成，按 DEX/Native/资源/Assets 等维度拆解，识别大文件、未压缩 SO、可转 WebP 图片等，并将 SO 归因到 Gradle 模块或 Maven 依赖，最终给出针对性的瘦身优化建议

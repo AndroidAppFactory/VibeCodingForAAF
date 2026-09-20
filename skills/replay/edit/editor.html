@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZixieKit Replay Event 编排器</title>
-<link rel="stylesheet" href="css/editor.css?v=3">
+<link rel="stylesheet" href="css/editor.css?v=7e16358e">
 </head>
 <body>
 
@@ -30,31 +30,32 @@
 
     <!-- 手机预览 -->
     <div class="section phone-section">
+      <!-- 截屏前/后切换 + 旋转 -->
+      <div class="screenshot-switch" id="screenshot-switch" style="margin-bottom:8px">
+        <button id="btn-ss-before" class="ss-btn active" onclick="showScreenshotBefore()">◀ 前</button>
+        <span id="screenshot-label">截屏</span>
+        <button id="btn-ss-after" class="ss-btn" onclick="showScreenshotAfter()">后 ▶</button>
+        <button id="btn-ss-rotate" class="ss-btn" onclick="rotateScreenshot()" title="旋转截图（每次顺时针 90°）">⟳</button>
+      </div>
+      <!-- 分辨率/设备切换（flow edit 模式下可见） -->
+      <div class="profile-switch" id="profile-switch" style="display:none;margin-bottom:8px">
+        <select id="profile-select" onchange="switchResolution(this.value)" style="padding:4px 8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#eee;font-size:14px;width:100%"></select>
+        <button onclick="addProfile()" style="margin-top:4px;padding:2px 12px;border:1px dashed #555;border-radius:4px;background:transparent;color:#888;font-size:12px;cursor:pointer;width:100%">+ 添加分辨率</button>
+      </div>
       <div class="phone-frame" id="phone-frame">
         <div class="phone-screen" id="phone-screen"></div>
         <canvas class="phone-canvas" id="phone-canvas"></canvas>
         <div class="phone-overlay" id="phone-overlay"></div>
       </div>
-      <div class="phone-info" id="phone-info">未加载文件</div>
-      <!-- 分辨率/设备切换（flow edit 模式下可见） -->
-      <div class="profile-switch" id="profile-switch" style="display:none;margin-top:8px">
-        <select id="profile-select" onchange="switchResolution(this.value)" style="padding:4px 8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#eee;font-size:14px;width:100%"></select>
-        <button onclick="addProfile()" style="margin-top:4px;padding:2px 12px;border:1px dashed #555;border-radius:4px;background:transparent;color:#888;font-size:12px;cursor:pointer;width:100%">+ 添加分辨率</button>
-      </div>
-      <!-- 截屏前/后切换（手机下方） -->
-      <div class="screenshot-switch" id="screenshot-switch" style="display:none">
-        <button id="btn-ss-before" class="ss-btn active" onclick="showScreenshotBefore()">◀ 前</button>
-        <span id="screenshot-label">截屏</span>
-        <button id="btn-ss-after" class="ss-btn" onclick="showScreenshotAfter()">后 ▶</button>
-      </div>
     </div>
   </div>
+  <div class="resizer" id="resizer-left" title="拖拽调整宽度"></div>
 
   <!-- 中间：事件列表 -->
   <div class="center-panel">
     <div class="section">
       <div class="panel-header">
-        <h2>📋 事件列表</h2>
+        <h2 id="panel-title">📋 事件列表</h2>
         <button id="btn-filter-critical" onclick="toggleCriticalFilter()" class="tool-btn" title="仅显示关键事件" style="font-size: 15px;padding: 2px 12px;margin-left: 5px">⭐ 筛选关键</button>
         <span class="stats" id="stats">0 个事件</span>
       </div>
@@ -66,6 +67,7 @@
       </div>
     </div>
   </div>
+  <div class="resizer" id="resizer-right" title="拖拽调整宽度"></div>
 
   <!-- 右侧：工具和编辑 -->
   <div class="right-panel">
@@ -138,6 +140,7 @@
       <select id="add-capture-mode" style="padding: 2px 8px;border:1px solid #444;border-radius: 4px;background:#1a1a2e;color:#eee;font-size: 18px">
         <option value="screenshot">截屏</option>
         <option value="video">录屏</option>
+        <option value="none">跳过采集</option>
       </select>
     </div>
     <div class="btn-row">
@@ -170,18 +173,18 @@
 
 
 
-<script src="js/defaults.js?v=6"></script>
-<script src="js/state.js?v=6"></script>
-<script src="js/render.js?v=6"></script>
-<script src="js/events.js?v=6"></script>
-<script src="js/phone.js?v=6"></script>
-<script src="js/modal.js?v=6"></script>
-<script src="js/shortcuts.js?v=6"></script>
-<script src="js/replay.js?v=6"></script>
-<script src="js/favorites.js?v=6"></script>
-<script src="js/export.js?v=6"></script>
-<script src="js/live.js?v=6"></script>
-<script src="js/editor.js?v=6"></script>
+<script src="js/defaults.js?v=3eb739e4"></script>
+<script src="js/state.js?v=d10b1ca8"></script>
+<script src="js/render.js?v=361aff1a"></script>
+<script src="js/events.js?v=c12a690c"></script>
+<script src="js/phone.js?v=151121d4"></script>
+<script src="js/modal.js?v=b59bdf9a"></script>
+<script src="js/shortcuts.js?v=4f04e0e0"></script>
+<script src="js/replay.js?v=55b71af6"></script>
+<script src="js/favorites.js?v=92c77e06"></script>
+<script src="js/export.js?v=f3c675f1"></script>
+<script src="js/live.js?v=26c970fe"></script>
+<script src="js/resizer.js?v=1427e858"></script>
 <script>
 document.getElementById('cmd-get-device').onclick = function() {
   navigator.clipboard.writeText("adb shell 'echo \"$(getprop ro.product.model) $(wm size)\"'");

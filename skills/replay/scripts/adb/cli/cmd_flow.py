@@ -32,6 +32,7 @@ def cmd_flow_run(args) -> int:
         flow_name,
         device=getattr(args, "device", None),
         speed=getattr(args, "speed", 1.0),
+        max_delay=getattr(args, "max_delay", None),
         step_indices=step_indices or None,
         fail_fast=getattr(args, "fail_fast", False),
         rerun=getattr(args, "rerun", False),
@@ -46,6 +47,7 @@ def cmd_flow_report(args) -> int:
 
     from flow_runner import list_flow_runs
     from flow_report import generate_flow_report, generate_critical_snapshot
+    from core.cli import tips_report_layout
 
     flow_id = args.id
     runs = list_flow_runs(flow_id)
@@ -60,11 +62,12 @@ def cmd_flow_report(args) -> int:
         return 1
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
     report_file = generate_flow_report(run_dir, summary)
-    snapshot_file = generate_critical_snapshot(run_dir, summary)
+    snapshot_file = generate_critical_snapshot(run_dir, summary, layout=args.layout)
     print(f"✅ 报告已生成")
     print(f"   📄 HTML 报告: {report_file}")
     if snapshot_file:
         print(f"   🖼  关键截图: {snapshot_file}")
+    tips_report_layout(args.id)
     return 0
 
 
@@ -83,7 +86,7 @@ def cmd_report_rerun(args) -> int:
         return 1
     summary = json.loads(summary_file.read_text(encoding="utf-8"))
     report_file = generate_flow_report(run_dir, summary)
-    snapshot_file = generate_critical_snapshot(run_dir, summary)
+    snapshot_file = generate_critical_snapshot(run_dir, summary, layout=args.layout)
     print(f"✅ 报告已生成: {report_file}")
     if snapshot_file:
         print(f"   🖼  关键截图: {snapshot_file}")

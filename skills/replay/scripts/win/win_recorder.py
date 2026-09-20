@@ -38,7 +38,7 @@ if str(_scripts_dir) not in sys.path:
 
 from pynput import mouse as p_mouse, keyboard as p_keyboard
 
-from bridge.screenshot import capture_fullscreen
+from bridge.screenshot import capture_fullscreen, get_screen_size
 from flowcore.config import RECORDINGS_DIR
 
 # 拖拽触发的最小像素移动
@@ -317,6 +317,13 @@ class WinRecorder:
             "timestamp": timestamp,
             "delay_before_ms": max(0, delay_before_ms),
             "delay_after_ms": 0,
+            # 截图预览：注入相对路径供编辑器加载（jpg，与 capture_fullscreen 输出一致）
+            "screenshots": {
+                "before": f"screenshots/event_{seq:03d}_0_before.jpg",
+                "after": f"screenshots/event_{seq:03d}_1_after.jpg",
+                "before_type": "screenshot",
+                "after_type": "screenshot",
+            },
         }
         event.update(extra)
         self._events.append(event)
@@ -357,6 +364,7 @@ class WinRecorder:
             "name": name,
             "created_at": datetime.now().isoformat(),
             "platform": "win",
+            "resolution": list(get_screen_size()),
             "events": self._events,
         }
         events_path = self._output_dir / "events.json"

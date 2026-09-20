@@ -242,7 +242,7 @@ def _find_module_in_config(aaf_root: Path, module_name: str, info: ModuleInfo) -
     }
 
     for dep_file in sorted(aaf_root.glob("dependencies_*.gradle")):
-        content = dep_file.read_text()
+        content = dep_file.read_text(encoding="utf-8")
         # 查找 "ModuleName" : [ ... ]
         pattern = rf'"{re.escape(module_name)}"\s*:\s*\[([^\]]+)\]'
         m = re.search(pattern, content, re.DOTALL)

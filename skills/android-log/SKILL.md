@@ -2,7 +2,7 @@
 
 
 
-version: 1
+version: 3
 category: android
 name: android-log
 description: Android 日志抓取工具 - 抓取、清空、过滤 logcat 日志，查看调试历史和纠正记录

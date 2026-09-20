@@ -42,7 +42,7 @@ def cmd_doctor(args) -> int:
     else:
         from core.cli import log_warning
         log_warning("ZINPUT 输入法未安装（中文输入需要）")
-        print(f"   安装命令: zk replay adb install")
+        print(f"   安装命令: zk replay install adb")
 
     log_success("环境检查完成")
     return 0

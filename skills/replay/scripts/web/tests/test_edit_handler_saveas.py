@@ -27,7 +27,7 @@ def recordings_tmp():
                 {"type": "click", "selectors": [{"type": "text", "value": "按钮"}]},
                 {"type": "scroll", "value": "300"},
             ]
-        }))
+        }, encoding="utf-8"))
         yield rec_dir
 
 
@@ -51,7 +51,7 @@ class TestSaveAs:
         data = json.loads(handler.events_file.read_text(encoding="utf-8"))
         data["name"] = new_name
         new_dir.mkdir(parents=True)
-        (new_dir / "events.json").write_text(json.dumps(data, ensure_ascii=False, indent=2))
+        (new_dir / "events.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
         assert new_dir.exists()
         saved = json.loads((new_dir / "events.json").read_text(encoding="utf-8"))

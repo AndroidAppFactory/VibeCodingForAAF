@@ -26,6 +26,8 @@ def _step_desc_html(ev: dict, flow_name: str = "") -> str:
     # ── 坐标类（adb/win/mac）──
     if action == "tap":
         return f"tap ({ev.get('x', '?')},{ev.get('y', '?')})"
+    if action == "multitap":
+        return f"tap ({ev.get('x', '?')},{ev.get('y', '?')}) ×{ev.get('count', 2)}"
     if action == "swipe":
         x1, y1 = ev.get("x1", ev.get("x", "?")), ev.get("y1", ev.get("y", "?"))
         x2, y2 = ev.get("x2", ev.get("to", {}).get("x", "?")), ev.get("y2", ev.get("to", {}).get("y", "?"))
@@ -107,7 +109,7 @@ def recover_missing_steps(run_dir: Path, summary: dict) -> dict:
                 ss_dir = run_dir / s.get("dir", "") / "screenshots"
                 if ss_dir.exists():
                     scrn = []
-                    for img in sorted(ss_dir.glob("*.png")) + sorted(ss_dir.glob("*.mp4")):
+                    for img in sorted(ss_dir.glob("*.png")) + sorted(ss_dir.glob("*.jpg")) + sorted(ss_dir.glob("*.mp4")):
                         scrn.append(f"{s['dir']}/screenshots/{img.name}")
                     s["critical_screenshots"] = scrn
         else:
@@ -143,6 +145,11 @@ def recover_missing_steps(run_dir: Path, summary: dict) -> dict:
     return summary
 
 
+def _cv_col_width(max_cols: int = 3) -> int:
+    """单列截图宽度（px），CSS .cv-col 与 JS 动态调宽共用同一值。"""
+    return max(180, 600 // max_cols)
+
+
 def _cv_block_width(n_cols: int, max_cols: int = 3) -> int:
     """按 cv-col 列数计算 cv-block 应有的宽度（px），使卡片宽度贴合图片区域而非被标题撑宽。
 
@@ -150,7 +157,7 @@ def _cv_block_width(n_cols: int, max_cols: int = 3) -> int:
     单列宽由 max_cols 决定（col_width = 100% / max_cols），gap 8px*(display_cols-1) + cv-grid padding 24px + cv-block 边框 4px。
     """
     display_cols = min(n_cols, max_cols)
-    col_w = max(180, 600 // max_cols)
+    col_w = _cv_col_width(max_cols)
     return display_cols * col_w + max(display_cols - 1, 0) * 8 + 24 + 4
 
 
@@ -165,26 +172,35 @@ def _media_tag(src: str, extra_attrs: str = "", step_view: bool = False) -> str:
                 <video src="{src}" preload="metadata" style="width:100%;max-height:270px;border-radius:6px;display:block;background:#000"></video>
                 <div class="cv-play-overlay"><div class="play-btn">▶</div></div>
             </div>'''
-    return f'<img src="{src}" style="width:100%;max-height:270px;object-fit:contain;background:#000;border-radius:6px;cursor:pointer" {extra_attrs}>'
+    return f'<img src="{src}" style="width:100%;height:auto;display:block;background:#000;border-radius:6px;cursor:pointer" {extra_attrs}>'
 
 
 _CP_COLORS = ["#4fc3f7", "#66bb6a", "#ffa726", "#ef5350", "#ab47bc", "#26c6da"]
 
 
-def _render_cv_block(header: str, items: list[dict], color: str, max_cols: int = 3) -> str:
-    """公共 block 渲染函数：全对比面板按 label 分组调用，关键事件面板按 phase 分组调用。
+def _render_cv_block(header: str, items: list[dict], color: str, max_cols: int = 3, label_mode: str = "idx") -> str:
+    """公共 block 渲染函数：全对比面板按 label 分组调用，关键事件面板按关键步骤分组调用。
 
     items: [{"idx": int, "img": {...}}]，已按 idx 排序。
-    entries>=2 时每列显示 `#执行序号` 标签，entries==1 时不显示。
+    label_mode="idx"（全对比面板）：多列时每列显示 `#执行序号` 标签；
+    label_mode="phase"（关键事件面板）：每列显示 phase 标签（before/after），多次运行时附带执行序号。
     """
     n_cols = len(items)
+    unique_idxs = {it["idx"] for it in items}
     cols = ""
     for it in items:
-        idx_label = f'<div class="cv-step">#{it["idx"]:02d}</div>' if n_cols >= 2 else ""
         img = it["img"]
         _cr = "true" if img.get("critical") else "false"
+        if label_mode == "phase":
+            phase = img.get("phase", "")
+            if len(unique_idxs) >= 2:
+                label = f'<div class="cv-step cv-phase">#{it["idx"]:02d} {phase}</div>'
+            else:
+                label = f'<div class="cv-step cv-phase">{phase}</div>'
+        else:
+            label = f'<div class="cv-step">#{it["idx"]:02d}</div>' if n_cols >= 2 else ""
         cols += f'''<div class="cv-col" data-critical="{_cr}">
-                    {idx_label}
+                    {label}
                     {_media_tag(img["src"], f'onclick="showFullscreen(this)" data-phase="{img.get("phase", "")}"')}
                 </div>'''
     return f'''
@@ -225,13 +241,15 @@ def _render_critical_panel(compare_data: dict, max_cols: int = 3) -> tuple[str, 
             fn_prefix = f"[{flow_name}] "
         else:
             fn_prefix = ""
+        # before/after 合并到一个 block：先 before 后 after，各自按 idx 排序
+        items = []
         for phase in ("before", "after"):
-            items = sorted(by_phase.get(phase, []), key=lambda x: x["idx"])
-            if not items:
-                continue
-            header = f"#{min_idx:02d} {fn_prefix}{step_name} · {phase}"
-            blocks += _render_cv_block(header, items, color, max_cols)
-            block_count += 1
+            items.extend(sorted(by_phase.get(phase, []), key=lambda x: x["idx"]))
+        if not items:
+            continue
+        header = f"#{min_idx:02d} {fn_prefix}{step_name}"
+        blocks += _render_cv_block(header, items, color, max_cols, label_mode="phase")
+        block_count += 1
     return blocks, block_count
 
 
@@ -291,7 +309,7 @@ def generate_flow_report(run_dir: Path, summary: dict, screenshot_cols: int = 3)
         images = []
         if sdir.exists():
             critical_screenshots = step.get("critical_screenshots", []) or []
-            for img in sorted(sdir.glob("*.png")) + sorted(sdir.glob("*.mp4")):
+            for img in sorted(sdir.glob("*.png")) + sorted(sdir.glob("*.jpg")) + sorted(sdir.glob("*.mp4")):
                 parts = img.stem.split("_")
                 label = ""
                 phase = ""
@@ -335,42 +353,42 @@ def generate_flow_report(run_dir: Path, summary: dict, screenshot_cols: int = 3)
 
     all_compare_html = ""
 
-    for si, (sname, cdata) in enumerate(sorted(compare_data.items())):
+    # 按 flow 重新分组：同一个 flow 的所有步骤归到一个 compare-panel
+    from collections import defaultdict
+    by_flow: dict[str, list[dict]] = defaultdict(list)
+    for sname, cdata in sorted(compare_data.items()):
         entries = cdata["entries"]
         if len(entries) < 2:
             continue
+        fid = sname.rsplit("|", 1)[0]
+        by_flow[fid].extend(entries)
 
-        # 提取可读的标题：flow_name + 步骤序号 + 描述
-        _key_suffix = sname.rsplit("|", 1)[-1]
-        _fn = entries[0].get("flow_name", sname)
-        _step_desc = entries[0].get("step_name", "")
-        if _key_suffix and _key_suffix.isdigit():
-            display_name = _fn
-            display_sub = f" 步骤{_key_suffix} — {_step_desc}" if _step_desc else f" 步骤{_key_suffix}"
-        else:
-            display_name = _fn
-            display_sub = f" — {_step_desc}" if _step_desc else ""
+    for si, (fid, entries) in enumerate(sorted(by_flow.items())):
+        _fn = entries[0].get("flow_name", fid)
 
-        all_labels = sorted(set(
-            img["label"] for entry in entries for img in entry["images"]
-        ), key=lambda x: (int(re.search(r'#(\d+)', x).group(1)) if re.search(r'#(\d+)', x) else 0, 0 if "before" in x else 1))
+        # 按步骤（sub_index）分 block，每个步骤一个 block（before/after 多次运行合并）
+        by_step: dict[int, dict] = defaultdict(lambda: {"name": "", "items": []})
+        for entry in entries:
+            sub_index = entry.get("sub_index", 0)
+            by_step[sub_index]["name"] = entry.get("step_name", "")
+            for img in entry["images"]:
+                by_step[sub_index]["items"].append({"idx": entry["idx"], "img": img})
 
         blocks = ""
-        for li, label in enumerate(all_labels):
+        for li, (sub_index, sd) in enumerate(sorted(by_step.items())):
             color = _CP_COLORS[li % len(_CP_COLORS)]
-            items = [
-                {"idx": entry["idx"], "img": img}
-                for entry in entries
-                for img in entry["images"]
-                if img["label"] == label
-            ]
-            blocks += _render_cv_block(label, items, color, screenshot_cols)
+            items = sd["items"]
+            # before 先、after 后，各自按 idx 排序
+            items.sort(key=lambda x: (0 if x["img"].get("phase") == "before" else 1, x["idx"]))
+            step_name = sd["name"]
+            header = f"{_fn} 步骤{sub_index} — {step_name}" if step_name else f"{_fn} 步骤{sub_index}"
+            blocks += _render_cv_block(header, items, color, screenshot_cols, label_mode="phase")
 
-        run_count = len(entries)
+        run_count = len(entries) // len(by_step) if by_step else 0
         all_compare_html += f'''
         <div class="compare-panel" id="compare-{si}">
             <div class="compare-header" onclick="toggleCompare(this)">
-                <h3>📋 {display_name}{display_sub} <span class="collapse-icon">▾</span></h3>
+                <h3>📋 {_fn} <span class="collapse-icon">▾</span></h3>
                 <span class="badge">{run_count} 次运行</span>
             </div>
             <div class="cv-wrapper">{blocks}</div>
@@ -461,13 +479,19 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans
 /* ── 关键事件面板 ── */
 .flat-header {{ cursor: pointer; user-select: none; }}
 .flat-panel.collapsed .cv-wrapper {{ display: none; }}
+/* 对比面板（全对比 + 关键事件）：grid 布局（全部 3 列 / 仅 before 6 列），block 宽度自适应 */
+.compare-panel .cv-wrapper {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }}
+.compare-panel .cv-block {{ width: auto !important; margin: 0; }}
+.compare-panel .cv-col {{ width: auto; flex: 1; }}
 .cv-wrapper {{ display: block; }}
 .cv-block {{ display: inline-block; vertical-align: top; max-width: 100%; border: 2px solid; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.02); margin-bottom: 12px; margin-right: 12px; }}
 .cv-block-header {{ padding: 10px 14px; font-size: 16px; font-weight: 700; color: #fff; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
 .cv-grid {{ display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; justify-content: flex-start; }}
-.cv-col {{ width: calc((100% - {(screenshot_cols - 1) * 8}px) / {screenshot_cols}); flex-shrink: 0; text-align: center; position: relative; }}
+.cv-col {{ width: {_cv_col_width(screenshot_cols)}px; flex-shrink: 0; text-align: center; position: relative; }}
 .cv-col[data-critical="true"]::after {{ content: "⭐"; position: absolute; top: 4px; right: 4px; font-size: 14px; z-index: 2; }}
-.cv-col img, .cv-col video {{ width: 100%; height: auto; max-height: 360px; object-fit: contain; background: #000; border-radius: 6px; cursor: pointer; }}
+.cv-step {{ font-size: 11px; color: var(--text-dim); padding: 4px 0 2px; text-align: center; }}
+.cv-step.cv-phase {{ color: var(--accent); }}
+.cv-col img, .cv-col video {{ width: 100%; height: auto; background: #000; border-radius: 6px; cursor: pointer; }}
 .cv-col img:hover, .cv-col video:hover {{ opacity: 0.8; }}
 
 /* ── 扁平对比面板 ── */
@@ -491,10 +515,14 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans
 .status-success {{ background: rgba(102, 187, 106, 0.15); color: var(--success); }}
 .status-failed {{ background: rgba(239, 83, 80, 0.15); color: var(--danger); }}
 .status-interrupted {{ background: rgba(255, 152, 0, 0.15); color: #ff9800; }}
-.screenshot-grid {{ display: grid; grid-template-columns: repeat({screenshot_cols}, 1fr); gap: 12px; padding: 16px 20px; }}
-.screenshot-item {{ position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }}
+.screenshot-grid {{ display: grid; grid-template-columns: repeat({screenshot_cols}, 1fr); gap: 16px; padding: 16px 20px; align-items: start; }}
+.screenshot-item {{ border-radius: 8px; overflow: hidden; border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; }}
 .screenshot-item:hover {{ transform: scale(1.02); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4); }}
-.screenshot-item img, .screenshot-item video {{ display: block; height: 240px; width: 100%; object-fit: contain; background: #000; }}
+.shot-title {{ padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--text); background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+.shot-pair {{ display: flex; align-items: flex-start; gap: 2px; }}
+.shot {{ flex: 0 0 50%; max-width: 50%; min-width: 0; position: relative; }}
+.shot img, .shot video {{ display: block; width: 100%; height: auto; background: #000; }}
+.shot-empty {{ display: flex; align-items: center; justify-content: center; min-height: 120px; color: var(--text-dim); font-size: 12px; background: #000; }}
 .screenshot-label {{ position: absolute; bottom: 0; left: 0; right: 0; padding: 4px 8px; background: rgba(0, 0, 0, 0.75); font-size: 11px; color: #ccc; text-align: center; }}
 
 .video-wrapper, .cv-video-wrap {{ position: relative; display: inline-block; }}
@@ -588,10 +616,10 @@ document.addEventListener('keydown', function(e) {{ if (e.key === 'Escape') hide
 
 function switchMode(mode, btn) {{
     currentMode = mode;
-    document.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.control-btn:not([data-phase-filter="true"])').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
 
-    const comparePanels = document.querySelectorAll('#compare-section > .compare-panel');
+    const comparePanels = document.querySelectorAll('#compare-section > .compare-panel:not(.flat-panel)');
     const flatPanels = document.querySelectorAll('.flat-panel');
     const stepsSection = document.getElementById('steps-section');
 
@@ -622,22 +650,39 @@ function filterPhase(mode, btn) {{
 
 function applyPhaseFilter() {{
     document.querySelectorAll('.cv-block').forEach(b => b.style.display = '');
-    document.querySelectorAll('.screenshot-item').forEach(item => item.style.display = '');
+    document.querySelectorAll('.cv-col').forEach(col => col.style.display = '');
+    document.querySelectorAll('.compare-panel .cv-wrapper').forEach(w => w.style.gridTemplateColumns = '');
+    document.querySelectorAll('.shot').forEach(shot => {{
+        shot.style.display = '';
+        shot.style.flex = '';
+        shot.style.maxWidth = '';
+    }});
+    document.querySelectorAll('.screenshot-grid').forEach(g => g.style.gridTemplateColumns = '');
     if (currentPhase === 'all') return;
 
-    // 全对比面板 + 关键事件面板共用：cv-block-header 文本本身含 phase 标签（如 "#1 before"），按整块隐藏
-    document.querySelectorAll('.cv-block').forEach(block => {{
-        const header = block.querySelector('.cv-block-header');
-        const blockLabel = header ? header.textContent : '';
-        if (!blockLabel.toLowerCase().includes(currentPhase)) {{
-            block.style.display = 'none';
+    // 对比面板（全对比 + 关键事件）：before/after 合并到同一 block，按 cv-col 内截图 data-phase 过滤，grid 列数 3→6
+    document.querySelectorAll('#compare-section .cv-col').forEach(col => {{
+        const el = col.querySelector('[data-phase]');
+        const phase = el ? el.dataset.phase : '';
+        if (phase && phase !== currentPhase) {{
+            col.style.display = 'none';
         }}
     }});
+    document.querySelectorAll('#compare-section .cv-wrapper').forEach(w => {{
+        w.style.gridTemplateColumns = 'repeat(6, 1fr)';
+    }});
 
-    document.querySelectorAll('.screenshot-item').forEach(item => {{
-        if (item.dataset.phase !== currentPhase) {{
-            item.style.display = 'none';
+    // 步骤视图：隐藏非当前 phase 的截图；保留侧占满 item，item 宽度减半、grid 列数翻倍，紧凑排列
+    document.querySelectorAll('.shot').forEach(shot => {{
+        if (shot.dataset.phase !== currentPhase) {{
+            shot.style.display = 'none';
+        }} else {{
+            shot.style.flex = '1 1 0%';
+            shot.style.maxWidth = '100%';
         }}
+    }});
+    document.querySelectorAll('.screenshot-grid').forEach(g => {{
+        g.style.gridTemplateColumns = 'repeat({screenshot_cols * 2}, 1fr)';
     }});
 }}
 
@@ -739,6 +784,25 @@ window.addEventListener("DOMContentLoaded",function(){{switchMode("{_default_mod
     return report_file
 
 
+def _render_step_item(before, after, critical: str, title: str = "") -> str:
+    """渲染步骤视图的一个对比项：同一事件的 before/after 并排，自适应截图尺寸。"""
+    def _shot(shot, phase: str) -> str:
+        if not shot:
+            return f'<div class="shot" data-phase="{phase}"><div class="shot-empty">无截图</div></div>'
+        rel_path, is_mp4 = shot
+        media = _media_tag(rel_path, 'onclick="showFullscreen(this)"', step_view=is_mp4)
+        return f'<div class="shot" data-phase="{phase}">{media}<div class="screenshot-label">{phase}</div></div>'
+    title_html = f'<div class="shot-title">{title}</div>' if title else ""
+    return f'''
+                <div class="screenshot-item" data-critical="{critical}">
+                    {title_html}
+                    <div class="shot-pair">
+                        {_shot(before, "before")}
+                        {_shot(after, "after")}
+                    </div>
+                </div>'''
+
+
 def _build_steps_html(steps: list[dict], run_dir: Path) -> str:
     """构建步骤卡片 HTML（常规模式）"""
     from collections import Counter
@@ -759,7 +823,7 @@ def _build_steps_html(steps: list[dict], run_dir: Path) -> str:
         fp = f"[{fn}] " if fn else ""
         images = []
         if sdir.exists():
-            for img in sorted(sdir.glob("*.png")) + sorted(sdir.glob("*.mp4")):
+            for img in sorted(sdir.glob("*.png")) + sorted(sdir.glob("*.jpg")) + sorted(sdir.glob("*.mp4")):
                 parts = img.stem.split("_")
                 label = ""
                 phase = ""
@@ -797,30 +861,37 @@ def _build_steps_html(steps: list[dict], run_dir: Path) -> str:
         # 多步骤卡片显示步骤范围，单步骤显示具体序号
         step_number_html = f"{step_idx:02d}" if not multi_step else f"{step_idx:02d}-{g_steps[-1].get('index', step_idx):02d}"
 
-        # 收集所有截图
+        # 收集所有截图：同一事件的 before/after 合并为一个对比项
         screenshots_html = ""
         for step in g_steps:
             dir_name = step.get("dir", "")
             critical_screenshots = step.get("critical_screenshots", []) or []
             step_dir = run_dir / dir_name / "screenshots"
-            if step_dir.exists():
-                for img in sorted(list(step_dir.glob("*.png")) + list(step_dir.glob("*.mp4"))):
-                    rel_path = f"{dir_name}/screenshots/{img.name}"
-                    parts = img.stem.split("_")
-                    label = ""
-                    phase = ""
-                    if len(parts) >= 4:
-                        ev_num = int(parts[1]) + 1
-                        phase = parts[3]
-                        si = step.get("sub_index", step.get("index", 0))
-                        label = f"#{si:02d} #{ev_num} {phase}"
-                    _sc = 'true' if rel_path in critical_screenshots else 'false'
-                    is_mp4 = rel_path.endswith(".mp4")
-                    screenshots_html += f'''
-                <div class="screenshot-item" data-phase="{phase}" data-critical="{_sc}">
-                    {_media_tag(rel_path, f'onclick="showFullscreen(this)"', step_view=is_mp4)}
-                    <div class="screenshot-label">{label}</div>
-                </div>'''
+            if not step_dir.exists():
+                continue
+            # 按事件 index 配对 before/after
+            shots: dict[int, dict[str, tuple[str, bool]]] = {}
+            for img in sorted(list(step_dir.glob("*.png")) + list(step_dir.glob("*.jpg")) + list(step_dir.glob("*.mp4"))):
+                parts = img.stem.split("_")
+                if len(parts) < 4:
+                    continue
+                try:
+                    ev_idx = int(parts[1])
+                except ValueError:
+                    continue
+                phase = parts[3] if parts[3] in ("before", "after") else ""
+                if not phase:
+                    continue
+                rel_path = f"{dir_name}/screenshots/{img.name}"
+                shots.setdefault(ev_idx, {})[phase] = (rel_path, rel_path.endswith(".mp4"))
+            for ev_idx in sorted(shots):
+                pair = shots[ev_idx]
+                before = pair.get("before")
+                after = pair.get("after")
+                _sc = 'true' if any(p[0] in critical_screenshots for p in (before, after) if p) else 'false'
+                si = step.get("sub_index", 0) or step.get("index", 0)
+                title = f"#{si:02d} {step.get('name', '')}".rstrip()
+                screenshots_html += _render_step_item(before, after, _sc, title)
 
         steps_html += f'''
         <div class="step-card {critical_class}" data-critical="{str(is_critical).lower()}">
@@ -856,14 +927,33 @@ def _format_started_at(summary: dict) -> str:
 
 
 def generate_critical_snapshot(run_dir: Path, summary: dict, phase: str = "after", max_cols: int = 4,
-                                display_name: str = "", device_label: str = "") -> Path | None:
+                                display_name: str = "", device_label: str = "",
+                                rotate_landscape: bool = True, layout: str = "order") -> Path | None:
     """将本次运行的关键事件截图拼接为一张汇总 PNG。
 
     display_name: 自定义顶部信息栏左侧标题（不传则取 summary.flow）。
     device_label: 设备型号，不为空时追加在 执行机器 之后。
+    rotate_landscape: 是否把横图旋转成竖图。adb 手机传 True（默认）；
+        web/win 截图天生横向，传 False 保持原方向。
+    layout: 拼图布局模式。
+        "order"（默认）：所有关键步骤严格按执行顺序排列；
+        "compare"：重复引用的 flow（同一操作加速前/后各执行一次）按 sub_index
+            分组重排，相同步骤的前后截图并排对比（同色标注）。
     """
+    from collections import defaultdict
+
     steps = summary.get("steps", [])
-    cards: list[dict] = []
+    # 识别重复引用的 flow（同一 flow_id + sub_index 出现多次 → 有对比）
+    key_count: dict[str, int] = defaultdict(int)
+    for step in steps:
+        fid = step.get("flow_id", "")
+        si = step.get("sub_index", 0)
+        if fid:
+            key_count[f"{fid}|{si}"] += 1
+    dup_fids = {k.rsplit("|", 1)[0] for k, cnt in key_count.items() if cnt >= 2}
+
+    # 第一遍：收集关键步骤卡片（含 fid/sub_index/index）
+    key_cards: list[dict] = []
     for step in steps:
         if not step.get("is_critical"):
             continue
@@ -880,53 +970,44 @@ def generate_critical_snapshot(run_dir: Path, summary: dict, phase: str = "after
         fn = step.get("flow_name", "") or step.get("name", "")
         si = step.get("sub_index", 0)
         if fn:
-            title = f"{fn} 步骤{si} [{fn}]" if si else fn
+            title = f"{fn} 步骤{si}" if si else fn
         else:
             title = f"步骤{si}" if si else step.get("name", "?")
-        cards.append({"title": title, "image": img_path})
+        fid = step.get("flow_id", "")
+        group = f"{fid}|{si}" if fid else f"idx{step.get('index', 0)}"
+        key_cards.append({
+            "card": {"title": title, "image": img_path, "group": group},
+            "fid": fid,
+            "si": si,
+            "index": step.get("index", 0),
+        })
+
+    # 第二遍：拼图布局
+    #   compare（默认）：重复引用的 flow 按 sub_index 分组重排，相同步骤前后截图并排对比
+    #   order：所有关键步骤严格按执行顺序（index）排列，不重排
+    cards: list[dict] = []
+    if layout == "order":
+        cards = [kc["card"] for kc in key_cards]
+    else:
+        emitted: set[str] = set()
+        for kc in key_cards:
+            fid = kc["fid"]
+            if fid in dup_fids:
+                if fid in emitted:
+                    continue
+                emitted.add(fid)
+                flow_kcs = [x for x in key_cards if x["fid"] == fid]
+                flow_kcs.sort(key=lambda x: (x["si"], x["index"]))
+                cards.extend(x["card"] for x in flow_kcs)
+            else:
+                cards.append(kc["card"])
 
     name = display_name or summary.get("flow", "")
     info_text = f"{name} · 执行时间：{_format_started_at(summary)}    执行机器：{_get_local_hostname()}"
     if device_label:
         info_text += f"    手机型号：{device_label}"
     out_path = run_dir / f"critical_{phase}_snapshot.png"
-    return render_critical_snapshot(cards, info_text, out_path, max_cols=max_cols)
-
-
-def generate_mixed_critical_snapshot(
-    results: list[dict],
-    flow_name: str,
-    output_dir: Path,
-    phase: str = "after",
-) -> Path | None:
-    """把各子流程的 critical_{phase}_snapshot.png 竖向堆叠为一张汇总 PNG。
-
-    Args:
-        results: [{plat, name, run_dir, summary}]
-        flow_name: mixed 流程名称
-        output_dir: 输出目录
-    """
-    from core.snapshot import render_mixed_critical_snapshot
-
-    groups: list[dict] = []
-    for r in results:
-        run_dir = Path(r.get("run_dir", ""))
-        plat = r.get("plat", "")
-        name = r.get("name", "")
-        if not run_dir.exists():
-            continue
-        # 直接复用子流程已渲染的 critical_after_snapshot.png
-        snap = run_dir / f"critical_{phase}_snapshot.png"
-        if not snap.exists():
-            continue
-        label = f"[{plat}] {name}" if plat else name
-        groups.append({"label": label, "image": snap})
-
-    if not groups:
-        return None
-    info_text = f"[mixed] {flow_name} · 执行时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}    执行机器：{get_local_hostname()}"
-    out_path = output_dir / f"mixed_critical_{phase}_snapshot.png"
-    return render_mixed_critical_snapshot(groups, info_text, out_path, max_card_width=1600)
-
+    return render_critical_snapshot(cards, info_text, out_path, max_cols=max_cols,
+                                    rotate_landscape=rotate_landscape)
 
 

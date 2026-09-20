@@ -3,6 +3,8 @@ let state = {
   data: null,           // 完整 JSON 数据
   events: [],           // 事件数组
   resolution: [1080, 2340],
+  rotation: 0,          // 录制时的屏幕旋转 0/90/180/270（用于初始截图方向）
+  screenshotRotation: 0, // 截图当前旋转角度 0/90/180/270（用户可手动切换）
   device: '',
   selectedIndex: -1,    // 当前选中事件索引
   multiSelected: new Set(), // 多选索引集合
@@ -18,6 +20,90 @@ let state = {
 // 手机屏幕尺寸（CSS 像素）
 const PHONE_W = 270;
 const PHONE_H = 585;
+
+// ===== 横屏判断（坐标始终按竖屏自然方向直接缩放，无需旋转）=====
+// 说明：录制侧坐标统一存「物理自然方向坐标」（竖屏 1080×2340），
+// 画布 PHONE_W×PHONE_H 也是竖屏，二者直接对齐，坐标点零旋转。
+// 横屏唯一需要处理的是「截图」旋转，由用户通过旋转按钮手动控制。
+function isLandscape() {
+  return state.rotation === 90 || state.rotation === 270;
+}
+
+// ===== 画布比例：win 按屏幕分辨率（横屏），其余按手机竖屏 =====
+function getFrameRatio() {
+  if ((window.__FLOW_PLATFORM || 'adb') === 'win') {
+    const w = state.resolution[0];
+    const h = state.resolution[1];
+    if (w && h) return w / h;
+  }
+  return PHONE_W / PHONE_H;
+}
+
+// ===== 手机框自适应：保持比例，在可用宽高内取最大，永不超出可见范围 =====
+function fitPhoneFrame() {
+  const panel = document.querySelector('.left-panel');
+  const frame = document.getElementById('phone-frame');
+  if (!panel || !frame) return;
+
+  const section = frame.closest('.section');
+  // 可用宽度 = section 内容宽（section 左右 padding 各 18px）
+  const availW = section ? section.clientWidth - 36 : 300;
+
+  // 可用高度 = 左栏可视底部 - 手机框当前顶部（上方控件已占据）
+  const panelRect = panel.getBoundingClientRect();
+  const frameRect = frame.getBoundingClientRect();
+  const availH = panelRect.bottom - frameRect.top - 12;
+
+  if (availW <= 0 || availH <= 0) return;
+
+  const ratio = getFrameRatio();
+  let w = availW;
+  let h = w / ratio;
+  if (h > availH) {
+    h = availH;
+    w = h * ratio;
+  }
+  frame.style.width = Math.floor(w) + 'px';
+  frame.style.height = Math.floor(h) + 'px';
+}
+
+// 手动旋转截图（点击一次顺时针 90°，0→90→180→270 循环）
+function rotateScreenshot() {
+  state.screenshotRotation = (state.screenshotRotation + 90) % 360;
+  applyScreenshotRotation();
+}
+
+// 把当前旋转角度应用到截图层
+function applyScreenshotRotation() {
+  const screen = document.getElementById('phone-screen');
+  if (!screen) return;
+  const frame = document.getElementById('phone-frame');
+  const fw = frame ? frame.clientWidth : 321;
+  const fh = frame ? frame.clientHeight : 683;
+
+  // 重置
+  screen.style.width = '100%';
+  screen.style.height = '100%';
+  screen.style.left = '0';
+  screen.style.top = '0';
+  screen.style.marginLeft = '0';
+  screen.style.marginTop = '0';
+  screen.style.transform = '';
+
+  const r = state.screenshotRotation % 360;
+  if (r === 90 || r === 270) {
+    // 宽高对调后旋转，使旋转后正好填满竖屏框
+    screen.style.width = fh + 'px';
+    screen.style.height = fw + 'px';
+    screen.style.left = '50%';
+    screen.style.top = '50%';
+    screen.style.marginLeft = (-fh / 2) + 'px';
+    screen.style.marginTop = (-fw / 2) + 'px';
+    screen.style.transform = 'rotate(' + r + 'deg)';
+  } else if (r === 180) {
+    screen.style.transform = 'rotate(180deg)';
+  }
+}
 
 // ===== 文件操作 =====
 
@@ -41,6 +127,9 @@ function loadData(data) {
   state.data = data;
   state.events = data.events || [];
   state.resolution = data.resolution || [1080, 2340];
+  state.rotation = data.rotation || 0;
+  // 横屏录制的截图初始旋转 90°，用户可再手动调整
+  state.screenshotRotation = (data.rotation === 90 || data.rotation === 270) ? 90 : 0;
   state.device = data.device || 'unknown';
   state.sourceFile = data.source_file || '';
   state.screenshotDir = data.screenshot_dir || '';
@@ -50,21 +139,14 @@ function loadData(data) {
   state.isPlaying = false;
   state.playIndex = -1;
 
-  const hasScreenshots = state.events.some(e => e.screenshots);
-  document.getElementById('phone-info').textContent =
-    `${state.device} · ${state.resolution[0]}×${state.resolution[1]}` +
-    (hasScreenshots ? ' · 📸 含截屏' : '');
-  
-  // 截屏切换按钮初始隐藏，选中事件时才显示
-  const switchEl = document.getElementById('screenshot-switch');
-  if (switchEl) switchEl.style.display = 'none';
-
   // 初始化分辨率 Profile 选择器（flow edit 模式）
   initProfileSelector();
 
   updateStats();
   renderEventList();
   renderCanvas();
+  fitPhoneFrame();
+  applyScreenshotRotation();
   showScreenshot(-1);
   updateStatusBar();
   updateStatistics();
@@ -98,6 +180,7 @@ function saveFile() {
   const output = {
     device: state.device || 'unknown',
     resolution: state.resolution,
+    rotation: state.rotation,
     events: cleanEvents,
   };
 
@@ -155,13 +238,14 @@ function saveFileAs() {
   var output = {
     device: state.device || 'unknown',
     resolution: state.resolution,
+    rotation: state.rotation,
     events: cleanEvents,
   };
 
   fetch('/api/save-as', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({name: newName, device: output.device, resolution: output.resolution, events: output.events}),
+    body: JSON.stringify({name: newName, device: output.device, resolution: output.resolution, rotation: output.rotation, events: output.events}),
   })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -319,8 +403,6 @@ function switchResolution(resKey) {
   state.isDirty = true;
   renderEventList();
   renderCanvas();
-  var phoneInfo = document.getElementById('phone-info');
-  if (phoneInfo) phoneInfo.textContent = (state.device || '') + ' · ' + state.resolution[0] + '×' + state.resolution[1];
 }
 
 var pendingProfileRes = '', pendingProfileDevice = '';

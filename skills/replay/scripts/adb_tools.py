@@ -294,6 +294,9 @@ def ensure_adb_ready(device: Optional[str] = None,
 
     if verbose:
         print(f"  ❌ ADB 连接恢复失败（已重试 {max_retries} 次）", file=sys.stderr)
+        print("  💡 排查指引：", file=sys.stderr)
+        print("     1. 手机已通过 USB 连接并开启开发者模式 / USB 调试", file=sys.stderr)
+        print("     2. 执行 adb devices 能看到设备", file=sys.stderr)
     return False
 
 
@@ -451,6 +454,135 @@ def get_current_resolution(device: Optional[str] = None) -> Tuple[int, int]:
     return (0, 0)
 
 
+def get_display_rotation(device: Optional[str] = None) -> int:
+    """获取当前屏幕旋转方向（0/90/180/270），失败返回 0
+
+    屏幕旋转会改变逻辑坐标系（input tap 的坐标基准），
+    但 wm size 返回的是物理/自然方向尺寸（不随旋转变），
+    因此横屏应用必须读取旋转方向来正确换算坐标。
+    """
+    adb = get_adb_cmd(device)
+    try:
+        result = subprocess.run(
+            adb + ["shell", "dumpsys", "window", "displays"],
+            capture_output=True, text=True, timeout=_ADB_SHELL_TIMEOUT
+        )
+    except subprocess.TimeoutExpired:
+        return 0
+
+    m = re.search(r"mCurrentRotation=ROTATION_(\d+)", result.stdout)
+    if m:
+        return int(m.group(1))
+
+    # 兜底：从 cur=WxH（当前逻辑尺寸）推断，宽>高即为横屏
+    m2 = re.search(r"\bcur=(\d+)x(\d+)", result.stdout)
+    if m2 and int(m2.group(1)) > int(m2.group(2)):
+        return 90
+    return 0
+
+
+def rotate_coords_to_display(px: float, py: float,
+                             physical_res: Tuple[int, int],
+                             rotation: int) -> Tuple[int, int]:
+    """把「物理自然方向坐标」旋转映射为「逻辑显示坐标」（input tap 坐标系）
+
+    flow 里保存的坐标统一是「物理自然方向坐标」（evdev 按 wm size 物理分辨率
+    线性映射，不随屏幕旋转变化）；而 `adb shell input tap` 使用随旋转变化的
+    逻辑显示坐标系。二者需按当前屏幕旋转方向换算。
+
+    Args:
+        px, py: 物理自然方向坐标
+        physical_res: 物理自然方向分辨率 (宽, 高)
+        rotation: 旋转角度 0/90/180/270
+
+    Returns:
+        逻辑显示坐标 (lx, ly)
+    """
+    phys_w, phys_h = physical_res
+    # 用「自然方向左上角 (0,0) 落到哪个逻辑角」描述旋转方向，避免顺/逆时针歧义。
+    if rotation == 90:
+        # 左上角 (0,0) → 逻辑左下角 (0, W)：lx = py, ly = W - px
+        return int(py), int(phys_w - px)
+    if rotation == 180:
+        # 左上角 (0,0) → 逻辑右下角 (W, H)
+        return int(phys_w - px), int(phys_h - py)
+    if rotation == 270:
+        # 左上角 (0,0) → 逻辑右上角 (H, 0)：lx = H - py, ly = px
+        return int(phys_h - py), int(px)
+    return int(px), int(py)
+
+
+def verify_rotation_mapping(device: Optional[str] = None) -> dict:
+    """自校验横屏坐标旋转映射（返回诊断信息，不抛异常）
+
+    横屏时，验证「自然方向四角 → 逻辑坐标」的映射是否满足：
+    1. 角点映射后不越界（都在逻辑尺寸范围内）
+    2. 四角一一映射到逻辑四角（不重不漏）
+
+    这能自动发现「公式写反 / 坐标轴错配」类错误。方向语义本身
+    由 Android 标准确定（ROTATION_90/270），此处仅校验实现一致性。
+
+    Returns:
+        dict: {rotation, physical, logical, corners, ok}
+    """
+    rotation = get_display_rotation(device)
+    physical = get_current_resolution(device)
+    phys_w, phys_h = physical
+    if rotation in (90, 270):
+        logical = (phys_h, phys_w)
+    else:
+        logical = (phys_w, phys_h)
+
+    corners = {
+        "自然左上(0,0)": rotate_coords_to_display(0, 0, physical, rotation),
+        f"自然右上({phys_w},0)": rotate_coords_to_display(phys_w, 0, physical, rotation),
+        f"自然左下(0,{phys_h})": rotate_coords_to_display(0, phys_h, physical, rotation),
+        f"自然右下({phys_w},{phys_h})": rotate_coords_to_display(phys_w, phys_h, physical, rotation),
+    }
+
+    log_w, log_h = logical
+    ok = True
+    seen: set = set()
+    for _name, (lx, ly) in corners.items():
+        if not (0 <= lx <= log_w and 0 <= ly <= log_h):
+            ok = False
+        seen.add((lx, ly))
+
+    # 四角必须映射到四个不同的逻辑角
+    expected = {(0, 0), (log_w, 0), (0, log_h), (log_w, log_h)}
+    if seen != expected:
+        ok = False
+
+    return {
+        "rotation": rotation,
+        "physical": physical,
+        "logical": logical,
+        "corners": corners,
+        "ok": ok,
+    }
+
+
+def print_rotation_check(device: Optional[str] = None) -> bool:
+    """横屏时打印旋转自检对照表，返回是否通过
+
+    竖屏（rotation 0/180）无需旋转，直接返回 True 且不打印。
+    """
+    info = verify_rotation_mapping(device)
+    if info["rotation"] not in (90, 270):
+        return True
+
+    phys_w, phys_h = info["physical"]
+    log_w, log_h = info["logical"]
+    print(f"   🔍 横屏坐标自检: 自然 {phys_w}x{phys_h} → 逻辑 {log_w}x{log_h}（ROTATION_{info['rotation']}）")
+    for name, (lx, ly) in info["corners"].items():
+        print(f"      {name} → 逻辑({lx},{ly})")
+    if info["ok"]:
+        print(f"   ✅ 角点映射合法（四角一一对应）")
+    else:
+        print(f"   ⚠️  角点映射异常，请检查 rotate_coords_to_display 公式！")
+    return info["ok"]
+
+
 def find_touch_device(device: Optional[str] = None) -> str:
     """查找触摸输入设备路径
     
@@ -551,6 +683,39 @@ def scale_coords(x: int, y: int,
     return int(x * sx), int(y * sy)
 
 
+def adb_pull(device: Optional[str] = None, adb: Optional[list] = None,
+             remote_path: str = "", local_path: str = "",
+             timeout: int = _ADB_PULL_TIMEOUT) -> bool:
+    """从设备拉取文件/目录到本地（adb pull）
+
+    Args:
+        device: 设备序列号，可选（未传 adb 时用它构建 adb 命令）
+        adb: 现成的 adb 命令前缀，可选（与 device 二选一，优先使用）
+        remote_path: 设备端路径
+        local_path: 本地目标路径
+        timeout: 超时秒数（默认 30）
+
+    Returns:
+        是否成功
+    """
+    if adb is None:
+        adb = get_adb_cmd(device)
+    try:
+        result = subprocess.run(
+            adb + ["pull", remote_path, local_path],
+            capture_output=True, text=True, timeout=timeout
+        )
+        if result.returncode != 0:
+            print("❌ adb pull 失败: %s" % result.stderr.strip())
+            return False
+        if result.stdout.strip():
+            print(result.stdout.strip())
+        return True
+    except subprocess.TimeoutExpired:
+        print("⏱️  adb pull 超时（%ds）" % timeout)
+        return False
+
+
 def take_screenshot(adb: list[str], output_path: str) -> bool:
     """截取设备屏幕并保存到本地
     
@@ -569,10 +734,7 @@ def take_screenshot(adb: list[str], output_path: str) -> bool:
             capture_output=True, timeout=_ADB_SHELL_TIMEOUT
         )
         # 拉取到本地
-        subprocess.run(
-            adb + ["pull", device_path, output_path],
-            capture_output=True, timeout=_ADB_PULL_TIMEOUT
-        )
+        adb_pull(adb=adb, remote_path=device_path, local_path=output_path)
         # 删除设备上的临时文件
         subprocess.run(
             adb + ["shell", "rm", device_path],
@@ -631,10 +793,7 @@ def stop_screenrecord(adb: list[str], proc: subprocess.Popen,
             proc.wait()
         time.sleep(1)  # 等待文件写入完成
         # 拉取文件
-        subprocess.run(
-            adb + ["pull", device_path, output_path],
-            capture_output=True, timeout=_ADB_PULL_TIMEOUT
-        )
+        adb_pull(adb=adb, remote_path=device_path, local_path=output_path)
         # 清理设备临时文件
         subprocess.run(
             adb + ["shell", "rm", device_path],

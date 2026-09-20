@@ -1,7 +1,7 @@
 ---
 
 
-version: 1
+version: 2
 category: aaf
 name: aaf-project-finder
 description: 定位 AAF 相关项目位置。通过 AAF_HOME 环境变量定位 AndroidAppFactory 等项目路径

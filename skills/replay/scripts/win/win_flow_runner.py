@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -28,7 +29,11 @@ if sys.platform == "win32":
             pass
 
 # 注入 notify 模块路径（~/.zixiekit/scripts/）
-sys.path.insert(0, str(Path.home() / ".zixiekit" / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 _zk_home = os.environ.get("ZIXIEKIT_HOME")
 if _zk_home:
     sys.path.insert(0, str(Path(_zk_home) / "scripts"))
@@ -194,14 +199,15 @@ def _execute_event(step: dict):
                 print(f"    ⚠ 启动失败: {e}")
                 raise
     elif action == "quit":
-        target = step.get("target", "")
-        if target:
-            _quit_process(target)
+        # 优先用 launch 记录的实际进程名（target 可能写错，如 mgtv.exe 实际是 芒果TV.exe）
+        proc = _active_process or step.get("target", "")
+        if proc:
+            _quit_process(proc)
     elif action == "action":
         _execute_action(step)
 
 
-from core.notify import notify_safe as _notify_safe, notify_image_safe as _notify_image_safe  # noqa: E402
+from core.notify import notify_safe as _notify_safe, notify_image_safe as _notify_image_safe, build_notify_message  # noqa: E402
 
 
 def _hostname():
@@ -209,63 +215,45 @@ def _hostname():
     return platform.node() or "windows"
 
 
-def _fmt_time(started_at: str) -> str:
-    """格式化时间：YYYY/MM/DD HH:MM"""
-    try:
-        dt = datetime.fromisoformat(started_at)
-        return dt.strftime("%Y/%m/%d %H:%M")
-    except Exception:
-        return started_at[:16] if started_at else ""
-
-
 def _title(flow_name: str, started_at: str, status: str = "") -> str:
-    """通知标题，格式对齐 adb-replay：
-    {icon} 💻 【{status} - Win】{flow_name} · 执行时间：{ts}    执行机器：{host}
+    """通知标题（执行时间已移除；执行机器保留在标题）
+    {icon} 💻 【{status} - Win】{flow_name}    执行机器：{host}
     """
-    ts = _fmt_time(started_at)
     host = _hostname()
     icons = {"开始": "🚀", "结束": "✅", "失败": "⚠️"}
     icon = icons.get(status, "ℹ️")
     label = f"{icon} 💻 【{status} - Win】" if status else "ℹ️ 💻 Win"
-    return f"{label}{flow_name} · 执行时间：{ts}    执行机器：{host}"
+    return f"{label}{flow_name}    执行机器：{host}"
 
 
-def run_flow_by_name(flow_name: str, speed: float = 1.0,
-                     step_indices: list | None = None, fail_fast: bool = False,
-                     rerun: bool = False):
-    """运行指定 Flow，返回 (run_dir, summary, report_path)。"""
-    global _active_process, _active_dir
-    _active_process = ""  # 每次运行重置
-    _active_dir = ""
+def build_hooks(speed: float = 1.0):
+    """构造 win 平台的 (setup, teardown, executor) 三元组。
 
-    # ── 环境预检：自动安装缺失依赖 ──
-    try:
-        import pynput  # noqa: F401
-    except ImportError:
-        print("📦 pynput 未安装，自动安装中...", file=sys.stderr)
-        import subprocess, sys, shutil
-        if shutil.which("pipx") and "pipx" in sys.executable:
-            subprocess.run(["pipx", "inject", "zixiekit", "pynput", "pyautogui", "psutil"], check=True)
-        else:
-            subprocess.run([sys.executable, "-m", "pip", "install", "pynput", "pyautogui", "psutil"], check=True)
-        print("✅ pynput 安装完成", file=sys.stderr)
-    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in flow_name)
-    run_dir = FLOW_RUNS_DIR / safe / datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir.mkdir(parents=True, exist_ok=True)
-    _app_log = run_dir / "app_output.log"
-    global _app_log_file
-    _app_log_file = _app_log
-    started_at = datetime.now().isoformat()
-
+    供单端 run_flow_by_name 和 mixed 单进程编排共用。
+    活跃进程状态用模块级全局 _active_process/_active_dir 维护。
+    """
     def _wlog(msg: str = ""):
-        """win 平台统一日志，带时间戳前缀"""
         ts = datetime.fromtimestamp(time.time()).strftime("%H:%M:%S")
         print(f"  [{ts}] {msg}")
 
-    def step_executor(ctx, step: dict):
-        """win 平台事件执行回调：只处理 event 类型（pause/shell_cmd 由 core.runner 处理）"""
+    # ── setup：显示桌面 + 设置 app 输出日志路径 ──
+    def setup(ctx):
+        global _app_log_file, _active_process, _active_dir
+        _active_process = ""  # 每次运行重置
+        _active_dir = ""
+        _app_log_file = ctx.run_dir / "app_output.log"
+        wininput.send_combo(["win", "d"])
+        time.sleep(0.5)
+        _wlog("📌 已显示桌面")
+
+    # ── teardown：win 无常驻资源需释放（进程由 flow 内 quit 管理）──
+    def teardown(ctx):
+        pass
+
+    # ── executor：只处理 event（pause/shell_cmd 由 core.runner 处理）──
+    def executor(ctx, step: dict):
         global _active_process, _active_dir
-        ss_dir = Path(step.get("_screenshot_dir", str(run_dir / "screenshots")))
+        ss_dir = Path(step.get("_screenshot_dir", str(ctx.run_dir / "screenshots")))
         ss_dir.mkdir(parents=True, exist_ok=True)
 
         # delay_before：执行前等待
@@ -299,8 +287,8 @@ def run_flow_by_name(flow_name: str, speed: float = 1.0,
             else:
                 capture_fullscreen(path, mark_pos=pos)
 
-        _capture(str(ss_dir / "event_0_0_before.png"), (x, y))
-        _wlog(f"📸 截屏(前): event_0_0_before.png")
+        _capture(str(ss_dir / "event_000_0_before.png"), (x, y))
+        _wlog(f"📸 截屏(前): event_000_0_before.png")
 
         # 操作详情
         action = step.get("action", "")
@@ -355,8 +343,6 @@ def run_flow_by_name(flow_name: str, speed: float = 1.0,
             elif action not in ("launch", "quit") and _active_dir:
                 fg = window.get_foreground_info()
                 if fg and fg.get("process"):
-                    # 如果前台窗口的进程与当前 _active_process 不同，
-                    # 但在同一个 _active_dir 下，切换到新进程
                     if fg["process"].lower() != _active_process.lower():
                         from pathlib import Path as _Path
                         try:
@@ -386,62 +372,133 @@ def run_flow_by_name(flow_name: str, speed: float = 1.0,
                 time.sleep(1.0)
             else:
                 _wlog(f"⚠️ 未找到 {_active_process} 的窗口，跳过聚焦")
-        _capture(str(ss_dir / "event_0_1_after.png"), (x, y))
-        _wlog(f"📸 截屏(后): event_0_1_after.png")
+        _capture(str(ss_dir / "event_000_1_after.png"), (x, y))
+        _wlog(f"📸 截屏(后): event_000_1_after.png")
+
+        # 写 data.json（含截图元数据，供 flow 编辑器注入运行截图预览）
+        _step_dir_raw = step.get("_step_dir")
+        if _step_dir_raw:
+            try:
+                _step_dir = Path(_step_dir_raw)
+                _step_dir.mkdir(parents=True, exist_ok=True)
+                _ev = {k: v for k, v in step.items() if not k.startswith("_")}
+                _data = {
+                    "device": "win",
+                    "events": [dict(_ev, screenshots={"before_type": "screenshot", "after_type": "screenshot"})],
+                }
+                with open(_step_dir / "data.json", "w", encoding="utf-8") as _f:
+                    json.dump(_data, _f, ensure_ascii=False, indent=2)
+            except OSError:
+                pass
 
         actual_num = step.get("_actual_num", 0)
         critical = []
         if step.get("is_critical"):
             critical = [
-                f"{actual_num:04d}/screenshots/event_0_0_before.png",
-                f"{actual_num:04d}/screenshots/event_0_1_after.png",
+                f"{actual_num:04d}/screenshots/event_000_0_before.png",
+                f"{actual_num:04d}/screenshots/event_000_1_after.png",
             ]
         return success, {"critical_screenshots": critical}
+
+    return setup, teardown, executor
+
+
+def probe() -> bool:
+    """探测 win 平台是否可用：运行在 Windows 且 pywin32/pynput 可用。"""
+    if sys.platform != "win32":
+        return False
+    try:
+        import pynput  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def run_flow_by_name(flow_name: str, speed: float = 1.0,
+                     max_delay: float | None = None,
+                     step_indices: list | None = None, fail_fast: bool = False,
+                     rerun: bool = False):
+    """运行指定 Flow，返回 (run_dir, summary, report_path)。"""
+    global _active_process, _active_dir
+    _active_process = ""  # 每次运行重置
+    _active_dir = ""
+
+    # ── 环境预检：自动安装缺失依赖 ──
+    try:
+        import pynput  # noqa: F401
+    except ImportError:
+        print("📦 pynput 未安装，自动安装中...", file=sys.stderr)
+        import subprocess, sys, shutil
+        if shutil.which("pipx") and "pipx" in sys.executable:
+            subprocess.run(["pipx", "inject", "zixiekit", "pynput", "pyautogui", "psutil"], check=True)
+        else:
+            subprocess.run([sys.executable, "-m", "pip", "install", "pynput", "pyautogui", "psutil"], check=True)
+        print("✅ pynput 安装完成", file=sys.stderr)
+    started_at = datetime.now().isoformat()
 
     # 加载 Flow 以获取元信息
     from core.flow import load_flow
     flow = load_flow(flow_name)
 
-    # Flow 开始通知
     fid = (flow.get("id", "") or "")[:4] if flow else flow_name
     display_name = flow.get("name", flow_name) if flow else flow_name
-    total_steps = len(flow.get("steps", [])) if flow else "?"
-    _notify_safe(
-        _title(display_name, started_at, "开始"),
-        f"共 {total_steps} 步\nzk replay win flow run {fid}")
 
-    def _setup_win(ctx):
-        """setup_hook：显示桌面后运行 Flow，避免其他窗口干扰"""
-        wininput.send_combo(["win", "d"])
-        time.sleep(0.5)
-        _wlog("📌 已显示桌面")
+    # ── setup/teardown/executor：复用 build_hooks 工厂（与 mixed 单进程共用）──
+    _setup_win, _teardown_win, step_executor = build_hooks(speed=speed)
+
+    # ── notify_hook：对齐 adb，用 win 完整标题覆盖 core 简化标题 ──
+    def _notify_win(title: str, message: str, level: str) -> None:
+        if "开始" in title:
+            status = "开始"
+        elif "失败" in title or "⚠️" in title:
+            status = "失败"
+        elif "结束" in title or "✅" in title:
+            status = "结束"
+        else:
+            status = ""
+        full_title = _title(display_name, started_at, status)
+        msg_started_at = started_at if status in ("结束", "失败", "中断") else ""
+        from core.cli import build_run_command
+        full_msg = build_notify_message(
+            message,
+            started_at=msg_started_at,
+            command=build_run_command(fid, speed=speed, max_delay=max_delay,
+                                      step_indices=step_indices, fail_fast=fail_fast, rerun=rerun),
+        )
+        _notify_safe(full_title, full_msg, level)
+
+    # ── report_hook：生成报告 + 关键截图（结果块会显示「报告/快照」行）──
+    def _report_win(run_dir: Path, summary: dict):
+        report_file = generate_flow_report(run_dir, summary, screenshot_cols=3)
+        snapshot = generate_critical_snapshot(run_dir, summary, display_name=display_name, max_cols=2, rotate_landscape=False)
+        if snapshot and not (os.environ.get("REPLAY_MIXED_MODE") == "1" or os.environ.get("REPLAY_NO_NOTIFY") == "1"):
+            _notify_image_safe(snapshot)
+        return report_file
+
+    # ── tips_hook：后续命令提示 ──
+    def _tips_win(fl: dict, run_dir: Path) -> None:
+        from core.cli import tips_after_flow_run
+        fid_ = (fl.get("id", "") or "")[:4]
+        report_file = run_dir / "index.html"
+        tips_after_flow_run("win", fid_, script_path="",
+                            report_path=str(report_file) if report_file.exists() else "")
 
     summary = run_flow(
         flow_name,
         step_executor,
         fail_fast=fail_fast,
         speed=speed,
+        max_delay=max_delay,
         step_indices=step_indices,
         rerun=rerun,
-        run_dir=run_dir,
         device="windows",
         setup_hook=_setup_win,
+        notify_hook=_notify_win,
+        report_hook=_report_win,
+        tips_hook=_tips_win,
     )
-    report = generate_flow_report(run_dir, summary, screenshot_cols=3)
-
-    # Flow 结束通知 + 关键事件拼图
-    total = summary.get("total_steps", 0)
-    failed = summary.get("failed_steps", 0)
-    snapshot = generate_critical_snapshot(run_dir, summary, display_name=display_name, max_cols=2)
-    _skip_notify = os.environ.get("REPLAY_MIXED_MODE") == "1" or os.environ.get("REPLAY_NO_NOTIFY") == "1"
-    if not _skip_notify:
-        _notify_safe(
-            _title(display_name, started_at, "结束" if failed == 0 else "失败"),
-            f"{total - failed}/{total} 成功\n报告: {report}"
-            + (f"\n截图: {snapshot}" if snapshot else "")
-            + f"\nzk replay win flow run {fid}",
-            level="info" if failed == 0 else "warning",
-        )
-        _notify_image_safe(snapshot)
+    run_dir = Path(summary.get("run_dir", ""))
+    report = run_dir / "index.html"
+    report = str(report) if report.exists() else None
 
     return run_dir, summary, report

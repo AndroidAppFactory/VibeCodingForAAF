@@ -10,7 +10,11 @@ import sys
 from pathlib import Path
 
 # 加载环境变量（~/.zixiekit/scripts/bootstrap.py 由 zk init / zk instance update 部署）
-sys.path.insert(0, str(Path.home() / ".zixiekit" / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 from bootstrap import load_env  # noqa: E402
 
 load_env()
@@ -40,3 +44,9 @@ FLOWS_DIR = _REPLAY_CORE.parent / "flows"
 HTML_DIR = _REPLAY_CORE.parent / "edit"
 # 所有平台统一：~/.zixiekit/skill/replay/flow_runs/
 FLOW_RUNS_DIR = ZIXIEKIT_TMP / "skill" / "replay" / "flow_runs"
+
+
+# ─── 安装 APK ─────────────────────────────────────
+
+# install 事件动作读取 APK 的固定目录
+INSTALL_DIR = ZIXIEKIT_TMP / "skill" / "replay" / "install"

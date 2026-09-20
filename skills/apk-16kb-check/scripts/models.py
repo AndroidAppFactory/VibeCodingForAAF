@@ -61,6 +61,8 @@ class ZipalignResult:
     total_count: int = 0
     output: str = ""
     entries: List[ZipalignEntry] = field(default_factory=list)  # 解析后的条目
+    version: str = ""  # zipalign 所在 Build-Tools 版本号（如 "35.0.0-rc3"）
+    version_ok: bool = True  # 版本是否满足 16KB 检查要求（>= 35.0.0-rc3）
 
 
 @dataclass
@@ -81,6 +83,13 @@ class CheckResult:
     agp_version: str = ""  # 检测到的 AGP 版本（仅 project_root 存在时）
     use_legacy_packaging: Optional[bool] = None  # useLegacyPackaging 显式设置值，None 表示未显式设置
     agp_config_source: str = ""  # AGP 版本/useLegacyPackaging 信息来源文件路径
+    # AAB 模式专属字段
+    bundletool_available: bool = False  # bundletool 是否可用
+    bundletool_version: str = ""  # dump config 解析出的 bundletool 版本（AAB 打包时内置，如 "1.15.2"，仅作辅助参考）
+    uncompress_native_libraries: Optional[bool] = None  # dump config 解析出的 uncompressNativeLibraries.enabled
+    page_alignment: str = ""  # dump config 解析出的 ZIP 对齐标记："16K"/"4K"/""（缺失默认 4K）
+    dump_config_raw: str = ""  # dump config 原始输出
+    aab_universal_apk: str = ""  # bundletool 转出的 universal APK 路径（临时产物）
 
     # ELF 检查统计
     @property

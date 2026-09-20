@@ -58,6 +58,8 @@ body{
 .panel-right .section h3{font-size:16px;color:#58a6ff;margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;}
 .panel-right .hint{font-size:20px;color:#484f58;line-height:2.2}
 .panel-right .hint code{color:#7ee787;background:rgba(126,231,135,.08);padding:2px 6px;border-radius:3px;font-size:18px;line-height:2}
+.panel-right .hint code.cmd{cursor:pointer;transition:all .15s;user-select:none}
+.panel-right .hint code.cmd:hover{background:rgba(126,231,135,.22);box-shadow:0 0 0 1px #7ee787}
 
 /* Flow 卡片 */
 .flow-card{
@@ -212,7 +214,7 @@ body{
   <div class="panel-right">
     <div class="section">
       <h3 id="right-title">💡 使用说明</h3>
-      <p class="hint" id="right-hint">点击左侧查看详情<br>运行：<code>zk replay flow run &lt;id前4位&gt;</code></p>
+      <p class="hint" id="right-hint">点击左侧查看详情<br>运行：<code>zk replay run &lt;id前4位&gt;</code><br>python3：<code>python3 replay/scripts/{adb|web|win|mac}/cli/main.py flow run &lt;id前4位&gt;</code></p>
     </div>
     <div class="section" style="flex:1;min-height:0;overflow-y:auto">
       <div id="preview-area"><p class="pv-empty">点击 Flow 名称查看详情</p></div>
@@ -260,7 +262,7 @@ function updateUI(){
       '编辑中：<b>'+esc(cf?cf.name:'?')+'</b><br>'
       +'点击左侧添加到编排<br>'
       +'点击步骤名查看引用详情<br>'
-      +'运行：<code>zk replay flow run '+rId+'</code>';
+      +'运行<br>'+runCmdHtml(rId, cf&&cf.platform);
   }else if(pi){
     btns.innerHTML='';
   }else{
@@ -268,6 +270,13 @@ function updateUI(){
   }
 }
 function toast(msg,warn){let t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(warn?' warn':'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+
+function _fallbackCopy(cmd){let ta=document.createElement('textarea');ta.value=cmd;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');toast('已复制：'+cmd)}catch(e){toast('复制失败',true)}document.body.removeChild(ta)}
+function copyCmd(cmd){if(!cmd)return;if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(cmd).then(()=>toast('已复制：'+cmd)).catch(()=>_fallbackCopy(cmd))}else{_fallbackCopy(cmd)}}
+function pyCmdPath(platform){let base=window.__SCRIPTS_DIR||'replay/scripts';let plat=(platform==='adb'||platform==='web'||platform==='win'||platform==='mac')?platform:'{adb|web|win|mac}';return base+'/'+plat+'/cli/main.py'}
+function _shorten(c){return c.length>56?c.slice(0,26)+' ... '+c.slice(-24):c}
+function runCmdHtml(rId,platform){let zk='zk replay run '+(rId||'');let py='python3 '+pyCmdPath(platform)+' flow run '+(rId||'');let ok=!!(rId&&rId!=='?');let mk=function(c){let d=_shorten(c);return ok?'<code class="cmd" onclick="copyCmd(\''+c+'\')" title="'+esc(c)+'">'+esc(d)+'</code>':'<code title="'+esc(c)+'">'+esc(d)+'</code>'};return '<div style="padding-left:2em">'+mk(zk)+'<br>'+mk(py)+'</div>'}
+function staticHintHtml(){let py='python3 '+pyCmdPath()+' flow run <id前4位>';return '点击左侧查看详情<br>运行<br><div style="padding-left:2em"><code>zk replay run &lt;id前4位&gt;</code><br><code title="'+esc(py)+'">'+esc(_shorten(py))+'</code></div>'}
 
 let _modalResolve=null;
 function showModal(title,msg,type='alert'){
@@ -332,26 +341,39 @@ function rFlows(){
   let groups={};
   ff.forEach(f=>{let g=f.group_id||'';if(!groups[g])groups[g]=[];groups[g].push(f)});
   let html='';
-  // 按每组最大 mtime 排序
-  for(let [gid,items] of Object.entries(groups).sort((a,b)=>{
-    let am=Math.max(...a[1].map(f=>f.mtime||0));
-    let bm=Math.max(...b[1].map(f=>f.mtime||0));
-    return bm-am;
-  })){
-    items.sort((a,b)=>b.mtime-a.mtime);
-    if(!gid){
-      // 未分组
-      html+=items.map(fc).join('');
-    }else{
-      let gname=_gn(gid)||gid;
-      let cc=collapsed.has(gid),cls=cc?' collapsed':'';
-      html+=`<div class="group-header${cls}" onclick="toggleGroup('${esc(gid)}')" ondragover="event.preventDefault();this.style.borderColor='#58a6ff'" ondragleave="this.style.borderColor=''" ondrop="event.preventDefault();this.style.borderColor='';moveFlowToGroup('${esc(gid)}')"><span class="grp-arrow">▾</span>📂 ${esc(gname)} <span style="font-size:12px;color:#484f58">(${items.length})</span><span style="margin-left:auto;display:flex;gap:4px" onclick="event.stopPropagation()"><button class="btn btn-xs" onclick="renameGroup('${esc(gid)}')" title="重命名分组" style="padding:0 4px;font-size:11px">✎</button><button class="btn btn-xs" onclick="deleteGroup('${esc(gid)}')" title="删除分组" style="padding:0 4px;font-size:11px;color:#f85149">✕</button>${cf?`<button class="btn btn-xs" onclick="addToGroup('${esc(gid)}')" style="padding:0 5px;font-size:12px" title="将当前流程加入此分组">＋</button>`:''}</span></div>`;
-      html+=`<div class="group-body${cls}">${items.map(fc).join('')}</div>`;
-    }
+  // 组集合：未分组(空 key) + 所有命名分组（_groups 全量 + 有 flow 但已无分组的孤儿分组）
+  let groupKeys=[''];
+  _groups.forEach(g=>{if(g&&g.id&&!groupKeys.includes(g.id))groupKeys.push(g.id)});
+  Object.keys(groups).forEach(gid=>{if(gid&&!groupKeys.includes(gid))groupKeys.push(gid)});
+
+  // 搜索时只显示有 flow 的组；无搜索时显示全部（含空分组）
+  let visibleKeys = s ? groupKeys.filter(k=>groups[k]&&groups[k].length) : groupKeys;
+
+  // 排序：置顶组排最前，其次有 flow 的按最大 mtime 降序，空分组排最后（同 mtime 按名称）
+  const _pinned=gid=>{let g=_groups.find(x=>x.id===gid);return g&&g.pinned?1:0};
+  visibleKeys.sort((a,b)=>{
+    let pa=_pinned(a),pb=_pinned(b);
+    if(pa!==pb)return pb-pa;
+    let ia=groups[a]||[],ib=groups[b]||[];
+    let am=ia.length?Math.max(...ia.map(f=>f.mtime||0)):-1;
+    let bm=ib.length?Math.max(...ib.map(f=>f.mtime||0)):-1;
+    if(am!==bm)return bm-am;
+    return (a?(_gn(a)||a):'').localeCompare(b?(_gn(b)||b):'');
+  });
+
+  for(let gid of visibleKeys){
+    let items=(groups[gid]||[]).sort((a,b)=>(b.mtime||0)-(a.mtime||0));
+    if(!gid){html+=items.map(fc).join('');continue}
+    let gname=_gn(gid)||gid;
+    let pinned=_groups.find(x=>x.id===gid)?.pinned;
+    let cc=collapsed.has(gid),cls=cc?' collapsed':'';
+    let body=items.length?items.map(fc).join(''):'<div class="empty-state" style="padding:8px;font-size:13px;color:#30363d">空分组</div>';
+    html+=`<div class="group-header${cls}" onclick="toggleGroup('${esc(gid)}')" ondragover="event.preventDefault();this.style.borderColor='#58a6ff'" ondragleave="this.style.borderColor=''" ondrop="event.preventDefault();this.style.borderColor='';moveFlowToGroup('${esc(gid)}')"><span class="grp-arrow">▾</span>📂 ${esc(gname)} <span style="font-size:12px;color:#484f58">(${items.length})</span><span style="margin-left:auto;display:flex;gap:4px" onclick="event.stopPropagation()"><button class="btn btn-xs" onclick="pinGroup('${esc(gid)}',${pinned?'false':'true'})" title="${pinned?'取消置顶':'置顶'}" style="padding:0 4px;font-size:11px;color:${pinned?'#f0b429':'#484f58'}">${pinned?'🔝':'📌'}</button><button class="btn btn-xs" onclick="renameGroup('${esc(gid)}')" title="重命名分组" style="padding:0 4px;font-size:11px">✎</button><button class="btn btn-xs" onclick="deleteGroup('${esc(gid)}')" title="删除分组" style="padding:0 4px;font-size:11px;color:#f85149">✕</button>${cf?`<button class="btn btn-xs" onclick="addToGroup('${esc(gid)}')" style="padding:0 5px;font-size:12px" title="将当前流程加入此分组">＋</button>`:''}</span></div>`;
+    html+=`<div class="group-body${cls}">${body}</div>`;
   }
   // "移到未分组"拖放区域置顶
   let outHtml='';
-  if(Object.keys(groups).some(g=>g)){
+  if(groupKeys.some(k=>k)){
     outHtml=`<div style="margin-bottom:8px;padding:6px 12px;border:1px dashed #21262d;border-radius:6px;font-size:12px;color:#30363d;text-align:center;cursor:default"
       ondragover="event.preventDefault();this.style.borderColor='#58a6ff';this.style.color='#58a6ff'"
       ondragleave="this.style.borderColor='';this.style.color=''"
@@ -385,7 +407,7 @@ async function deleteFlow(id){
   toast('已删除 → '+name);
 }
 
-const PLATFORMS=['win','adb','web','mixed'];
+const PLATFORMS=['win','mac','adb','web','mixed'];
 
 function _pickPlatform(callback){
   let opts=PLATFORMS.map(p=>`<option value="${p}">${p}</option>`).join('');
@@ -418,6 +440,12 @@ async function deleteGroup(gid){
   if(!confirm(`删除分组「${name}」？\n（分组内的 Flow 不会被删除，只会变为"未分组"）`))return;
   await api('/api/groups/delete','POST',{id:gid});
   await ld();rFlows();toast('分组已删除');
+}
+
+async function pinGroup(gid,pinned){
+  let res=await api('/api/groups/pin','POST',{id:gid,pinned:pinned});
+  if(res.ok){await ld();rFlows();toast(pinned?'已置顶 → '+_gn(gid):'已取消置顶 → '+_gn(gid))}
+  else{alert(res.error||'操作失败')}
 }
 
 async function newFlow(){
@@ -461,6 +489,21 @@ function openFlowEditor(id){
   window.open('/editor/?flow='+encodeURIComponent(id), '_blank');
 }
 
+async function duplicateFlow(id){
+  let d=await api('/api/flow?name='+encodeURIComponent(id));
+  let f=d.flow||d;if(!f||f.error)return;
+  let newName=prompt('复制为（新名称）', (f.name||'')+' 副本');
+  if(!newName||!newName.trim())return;
+  newName=newName.trim();
+  let copy=JSON.parse(JSON.stringify(f));
+  delete copy.id;
+  delete copy.created_at;
+  copy.name=newName;
+  await sa(copy);
+  await ld();rFlows();
+  toast('已复制 → '+newName);
+}
+
 async function previewFlow(id){
   let d=await api('/api/flow?name='+encodeURIComponent(id));
   let f=d.flow||d;if(!f||f.error)return;
@@ -475,8 +518,10 @@ async function previewFlow(id){
   let stepsHtml=(f.steps||[]).map((s,i)=>buildStepCard(s,i,true)).join('');
   if((f.steps||[]).length===0) stepsHtml='<div class="empty-state" style="padding:20px">无步骤</div>';
   let editBtn=atm
-    ?`<button class="btn btn-primary btn-sm" onclick="openFlowEditor('${fid}')" style="margin-top:8px">✏️ 编辑事件</button>`
-    :`<button class="btn btn-primary btn-sm" onclick="startEdit()" style="margin-top:8px">✏️ 进入编排</button>`;
+    ?`<button class="btn btn-primary btn-sm" onclick="openFlowEditor('${fid}')" style="margin-top:8px">✏️ 编辑事件</button>
+       <button class="btn btn-sm" onclick="duplicateFlow('${fid}')" style="margin-top:8px;margin-left:4px">📋 复制事件</button>`
+    :`<button class="btn btn-primary btn-sm" onclick="startEdit()" style="margin-top:8px">✏️ 进入编排</button>
+       <button class="btn btn-sm" onclick="duplicateFlow('${fid}')" style="margin-top:8px;margin-left:4px">📋 复制 Flow</button>`;
   prev.innerHTML=`<div class="pv-flow-head">
     <div class="pv-flow-name">📋 ${esc(f.name)} ${grpStr} ${idStr} ${renameBtn}</div>
     ${editBtn}
@@ -492,7 +537,7 @@ async function previewFlow(id){
   document.getElementById('right-title').textContent='💡 使用说明';
   document.getElementById('right-hint').innerHTML=
     '预览：<b>'+esc(f.name)+'</b>'+(atm?' <span style="color:#d29922">（不可编排）</span>':'')+'<br>'
-    +'运行：<code>zk replay flow run '+rId+'</code>';
+    +'运行<br>'+runCmdHtml(rId, f.platform);
 }
 
 async function startEdit(){
@@ -508,7 +553,7 @@ function exitEdit(){
   document.getElementById('preview-area').innerHTML='<p class="pv-empty">点击 Flow 名称查看详情</p>';
   document.getElementById('tit').textContent='Flow 编排器';
   document.getElementById('right-title').textContent='💡 使用说明';
-  document.getElementById('right-hint').innerHTML='点击左侧查看详情<br>运行：<code>zk replay flow run &lt;id前4位&gt;</code>';
+  document.getElementById('right-hint').innerHTML=staticHintHtml();
 }
 
 function buildStepCard(st, i, showFlowRef){
@@ -523,7 +568,7 @@ function buildStepCard(st, i, showFlowRef){
     else if(a==='keyboard'){desc=`键盘 ${(st.keys||[]).join('+')||'?'}`;icon='⌨️'}
     else if(a==='text'||a==='type'){desc=`"${st.content||''}"`;icon='📝'}
     else if(a==='navigate'){desc=st.url||st.value||'navigate';icon='🌐'}
-    else if(a==='adb'){desc=st.adb_action==='open-schema'?`Schema: ${st.content||''}`:`adb ${st.adb_action||'?'} ${st.package||''}`;icon='💻'}
+    else if(a==='adb'){desc=st.adb_action==='open-schema'?`Schema: ${st.content||''}`:st.adb_action==='install'?`安装 APK: ${st.content||''}`:st.adb_action==='uninstall'?`卸载应用: ${st.package||''}`:`adb ${st.adb_action||'?'} ${st.package||''}`;icon='💻'}
     else if(a==='launch'){desc=`启动 ${st.target||'?'}`;icon='🚀'}
     else if(a==='quit'){desc=`退出 ${st.target||'?'}`;icon='🗑'}
     else{desc=a;icon='⚙️'}
@@ -533,10 +578,11 @@ function buildStepCard(st, i, showFlowRef){
     let refId=st.flow_id||st.flow_name||'?';
     let rf=fs.find(f=>f.id===refId||f.name===refId);
     desc=`→ ${rf?rf.name:refId}`;icon='🔗';
-    st._resolvedName=rf?rf.name:refId;
+    // 用 id 精确匹配跳转（name 可重复，不能作为跳转键）
+    st._resolvedId=rf?rf.id:(st.flow_id||refId);
   }
   let refBadge=showFlowRef&&t==='flow'?' <span class="sbadge">编排</span>':'';
-  let onClick=t==='flow'&&st._resolvedName?`onclick="event.stopPropagation();previewFlow('${esc(st._resolvedName)}')"`:'';
+  let onClick=t==='flow'&&st._resolvedId?`onclick="event.stopPropagation();previewFlow('${esc(st._resolvedId)}')"`:'';
   // 延迟信息
   let db=st.delay_before_ms||0, da=st.delay_after_ms||0;
   let delayParts=[];
@@ -578,7 +624,7 @@ function eventDesc(st){
     else if(a==='keyboard'){desc=`键盘 ${(st.keys||[]).join('+')||'?'}`;icon='⌨️'}
     else if(a==='text'||a==='type'){desc=`"${st.content||''}"`;icon='📝'}
     else if(a==='navigate'){desc=st.url||st.value||'navigate';icon='🌐'}
-    else if(a==='adb'){desc=st.adb_action==='open-schema'?`Schema: ${st.content||''}`:`adb ${st.adb_action||'?'} ${st.package||''}`;icon='💻'}
+    else if(a==='adb'){desc=st.adb_action==='open-schema'?`Schema: ${st.content||''}`:st.adb_action==='install'?`安装 APK: ${st.content||''}`:st.adb_action==='uninstall'?`卸载应用: ${st.package||''}`:`adb ${st.adb_action||'?'} ${st.package||''}`;icon='💻'}
     else if(a==='launch'){desc=`启动 ${st.target||'?'}`;icon='🚀'}
     else if(a==='quit'){desc=`退出 ${st.target||'?'}`;icon='🗑'}
     else{desc=a;icon='⚙️'}
@@ -744,6 +790,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape')rs();
 });
 
+document.getElementById('right-hint').innerHTML=staticHintHtml();
 init();
 </script>
 </body>

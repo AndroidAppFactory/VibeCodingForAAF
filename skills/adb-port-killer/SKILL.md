@@ -1,7 +1,7 @@
 ---
 
 
-version: 1
+version: 2
 category: android
 name: adb-port-killer
 description: ADB 端口释放工具 - 查看并释放被占用的 ADB 端口（5037），自动保留 Android Studio 等保护进程

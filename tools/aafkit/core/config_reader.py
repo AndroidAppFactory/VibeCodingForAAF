@@ -71,7 +71,7 @@ def get_aaf_home() -> Path:
     from pathlib import Path
     
     # 使用 global_env.py 的功能获取 AAF_HOME
-    from global_env import get_global_var
+    from zixiekit.core.global_env import get_global_var
     
     aaf_home = get_global_var("AAF_HOME")
     if not aaf_home:
@@ -100,7 +100,7 @@ def get_zixiekit_home() -> Path:
     from pathlib import Path
     
     # 直接使用 global_env.py 的功能获取 ZIXIEKIT_HOME
-    from global_env import get_global_var
+    from zixiekit.core.global_env import get_global_var
     
     zk_home = get_global_var("ZIXIEKIT_HOME")
     if not zk_home:
@@ -145,7 +145,7 @@ def read_config(aaf_root: Path) -> AAFConfig:
     # 1. 读取 config.gradle
     config_gradle = aaf_root / "config.gradle"
     if config_gradle.exists():
-        content = config_gradle.read_text()
+        content = config_gradle.read_text(encoding="utf-8")
         config.compile_sdk_version = _extract_gradle_value(content, "compileSdkVersion")
         config.build_tools_version = _extract_gradle_value(content, "buildToolsVersion")
         config.lib_min_sdk_version = _extract_gradle_value(content, "libMinSdkVersion")
@@ -156,7 +156,7 @@ def read_config(aaf_root: Path) -> AAFConfig:
     # 2. 读取 build.gradle（Gradle 插件版本）
     build_gradle = aaf_root / "build.gradle"
     if build_gradle.exists():
-        content = build_gradle.read_text()
+        content = build_gradle.read_text(encoding="utf-8")
         m = re.search(r"com\.android\.tools\.build:gradle:([^\s'\"]+)", content)
         if m:
             config.gradle_plugin_version = m.group(1)
@@ -169,7 +169,7 @@ def read_config(aaf_root: Path) -> AAFConfig:
     # 3. 读取 gradle-wrapper.properties
     wrapper_props = aaf_root / "gradle" / "wrapper" / "gradle-wrapper.properties"
     if wrapper_props.exists():
-        content = wrapper_props.read_text()
+        content = wrapper_props.read_text(encoding="utf-8")
         m = re.search(r"distributionUrl\s*=\s*(.+)", content)
         if m:
             config.gradle_distribution_url = m.group(1).strip().replace("\\:", ":")
@@ -177,13 +177,13 @@ def read_config(aaf_root: Path) -> AAFConfig:
     # 4. 读取 dependencies.gradle（moduleVersionName）
     deps_gradle = aaf_root / "dependencies.gradle"
     if deps_gradle.exists():
-        content = deps_gradle.read_text()
+        content = deps_gradle.read_text(encoding="utf-8")
         config.module_version_name = _extract_gradle_value(content, "moduleVersionName")
 
     # 5. 读取 APPTest/build.gradle（Compose Compiler）
     apptest_gradle = aaf_root / "APPTest" / "build.gradle"
     if apptest_gradle.exists():
-        content = apptest_gradle.read_text()
+        content = apptest_gradle.read_text(encoding="utf-8")
         m = re.search(r"kotlinCompilerExtensionVersion\s*[=:]\s*['\"]([^'\"]+)", content)
         if m:
             config.compose_compiler_version = m.group(1)
@@ -213,7 +213,7 @@ def _extract_gradle_value(content: str, key: str) -> str:
 
 def _parse_dependency_file(dep_file: Path, config: AAFConfig) -> None:
     """解析 dependencies_*.gradle 文件，提取模块版本"""
-    content = dep_file.read_text()
+    content = dep_file.read_text(encoding="utf-8")
     filename = dep_file.name
 
     # 匹配模式：

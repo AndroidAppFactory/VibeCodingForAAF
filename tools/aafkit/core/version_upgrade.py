@@ -140,7 +140,7 @@ def _scan_version_variables(project_path: Path, aaf_config: AAFConfig, report: V
     for config_file in candidates:
         if not config_file.exists():
             continue
-        content = config_file.read_text()
+        content = config_file.read_text(encoding="utf-8")
 
         # 匹配 aaf_xxx_version = 'x.x.x' 或 aaf_version = 'x.x.x'
         for m in re.finditer(r"(aaf\w*version\w*)\s*=\s*['\"]([^'\"]+)['\"]", content, re.IGNORECASE):
@@ -172,7 +172,7 @@ def _scan_hardcoded_deps(project_path: Path, aaf_config: AAFConfig, report: Vers
             continue
         if ".gradle/" in str(gradle_file) or "/build/" in str(gradle_file):
             continue
-        content = gradle_file.read_text()
+        content = gradle_file.read_text(encoding="utf-8")
 
         for m in re.finditer(
             r"com\.bihe0832\.android:([^:'\"\s]+):([^'\"\s]+)",
@@ -223,7 +223,7 @@ def _variable_to_artifact(var_name: str, project_path: Path) -> str:
             continue
         if ".gradle/" in str(gradle_file) or "/build/" in str(gradle_file):
             continue
-        content = gradle_file.read_text()
+        content = gradle_file.read_text(encoding="utf-8")
         for pattern in var_patterns:
             m = re.search(pattern, content)
             if m:
@@ -271,7 +271,7 @@ def version_apply(project_path: str | Path, report: VersionReport | None = None)
             result.changes.append(f"⚠️ 文件不存在: {diff.file}")
             continue
 
-        content = target_file.read_text()
+        content = target_file.read_text(encoding="utf-8")
 
         if diff.variable == "(硬编码)":
             # 替换硬编码版本
@@ -279,7 +279,7 @@ def version_apply(project_path: str | Path, report: VersionReport | None = None)
             new = f"com.bihe0832.android:{diff.artifact_id}:{diff.latest}"
             if old in content:
                 content = content.replace(old, new)
-                target_file.write_text(content)
+                target_file.write_text(content, encoding="utf-8")
                 result.changed_files.append(str(target_file.relative_to(project_path)))
                 result.changes.append(f"✅ {diff.file}: {diff.artifact_id} {diff.current} → {diff.latest}")
             else:
@@ -289,7 +289,7 @@ def version_apply(project_path: str | Path, report: VersionReport | None = None)
             pattern = rf"({re.escape(diff.variable)}\s*=\s*['\"]){re.escape(diff.current)}(['\"])"
             new_content, count = re.subn(pattern, rf"\g<1>{diff.latest}\2", content)
             if count > 0:
-                target_file.write_text(new_content)
+                target_file.write_text(new_content, encoding="utf-8")
                 result.changed_files.append(str(target_file.relative_to(project_path)))
                 result.changes.append(f"✅ {diff.file}: {diff.variable} {diff.current} → {diff.latest}")
             else:

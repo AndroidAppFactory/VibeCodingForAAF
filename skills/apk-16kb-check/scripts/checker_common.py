@@ -42,28 +42,95 @@ def check_compressed_so(apk_path: str) -> Tuple[bool, List[str]]:
 # ============================================================================
 # 工具查找
 # ============================================================================
-def find_tool(tool_name: str) -> Optional[str]:
-    """在 ANDROID_HOME/build-tools/ 中查找工具，优先高版本"""
+# zipalign 的 -P 16 页面对齐检查参数，在旧版 Build-Tools 中存在实现缺陷，
+# 会错误地报告 "Verification successful"（APK 显示通过但实际未对齐）。
+# 官方要求使用 35.0.0-rc3 及以上版本的 zipalign，否则检查结果不可信。
+MIN_ZIPALIGN_VERSION = '35.0.0-rc3'
+
+
+def _parse_version(version_str: str):
+    """解析 Build-Tools 版本号，返回可比较的元组
+
+    支持格式：如 "34.0.0"、"35.0.0-rc3"、"35.0.1"、"36.0.0"
+    规则：数字部分按整数比较；带 -rcN 预发布后缀的版本排在对应正式版之前
+    （例如 35.0.0-rc3 < 35.0.0）。
+    """
+    m = re.match(r'^(\d+(?:\.\d+)*)(?:-([a-zA-Z]+)(\d*))?$', version_str.strip())
+    if not m:
+        return None
+    nums = tuple(int(x) for x in m.group(1).split('.'))
+    pre_label = m.group(2) or ''      # 如 "rc"，正式版为空
+    pre_num = int(m.group(3)) if m.group(3) else 0
+    # 正式版（无预发布后缀）大于任何预发布版本
+    pre_flag = 1 if not pre_label else 0
+    return (nums, pre_flag, pre_label, pre_num)
+
+
+def _version_ge(version_str: str, min_version: str) -> bool:
+    """判断 version_str 是否 >= min_version"""
+    a = _parse_version(version_str)
+    b = _parse_version(min_version)
+    if a is None:
+        return False
+    if b is None:
+        return True
+    return a >= b
+
+
+def _list_tool_versions(tool_name: str) -> List[Tuple[str, str]]:
+    """列出 ANDROID_HOME/build-tools/ 下所有含指定工具的 (版本目录名, 工具路径)"""
     android_home = os.environ.get('ANDROID_HOME', '')
     if not android_home:
-        return None
+        return []
 
     build_tools_dir = os.path.join(android_home, 'build-tools')
     if not os.path.isdir(build_tools_dir):
-        return None
+        return []
 
-    # 列出所有版本目录，按版本号降序排序
     versions = []
     for d in os.listdir(build_tools_dir):
         tool_path = os.path.join(build_tools_dir, d, tool_name)
         if os.path.isfile(tool_path) and os.access(tool_path, os.X_OK):
             versions.append((d, tool_path))
+    return versions
 
+
+def find_tool(tool_name: str) -> Optional[str]:
+    """在 ANDROID_HOME/build-tools/ 中查找工具，按版本号降序优先高版本"""
+    versions = _list_tool_versions(tool_name)
     if not versions:
         return None
-
-    versions.sort(key=lambda x: x[0], reverse=True)
+    # 按可比较的版本元组降序排序（无法解析的目录名排最后）
+    versions.sort(
+        key=lambda x: _parse_version(x[0]) or (-1,),
+        reverse=True
+    )
     return versions[0][1]
+
+
+def find_zipalign() -> Tuple[Optional[str], str]:
+    """查找用于 16KB 检查的 zipalign，返回 (路径, 版本号)
+
+    优先选择 >= MIN_ZIPALIGN_VERSION 的最高版本；若所有已安装版本都低于
+    最低要求，则仍返回最高的那个（保证能执行），但版本号用于调用方告警。
+    """
+    versions = _list_tool_versions('zipalign')
+    if not versions:
+        return None, ''
+
+    # 按可比较的版本元组降序排序
+    versions.sort(
+        key=lambda x: _parse_version(x[0]) or (-1,),
+        reverse=True
+    )
+
+    # 优先取满足最低要求的最高版本
+    for d, path in versions:
+        if _version_ge(d, MIN_ZIPALIGN_VERSION):
+            return path, d
+
+    # 兜底：取已安装的最高版本（调用方会依据版本号告警）
+    return versions[0][1], versions[0][0]
 
 
 def find_check_elf_script() -> Optional[str]:
@@ -75,6 +142,66 @@ def find_check_elf_script() -> Optional[str]:
     return None
 
 
+def find_bundletool() -> Optional[str]:
+    """查找 bundletool.jar，返回路径或 None
+
+    查找优先级（首个命中即返回）：
+    1. 环境变量 BUNDLETOOL / BUNDLETOOL_JAR（指向 jar 文件或目录）
+    2. PATH 中的 bundletool 命令
+    3. 脚本同目录下的 bundletool.jar
+    4. ${ZIXIEKIT_TMP}/skill/apk-16kb-check/bundletool.jar（skill 缓存位置）
+    """
+    # 1. 环境变量
+    for env_key in ('BUNDLETOOL', 'BUNDLETOOL_JAR'):
+        env_val = os.environ.get(env_key, '').strip()
+        if not env_val:
+            continue
+        expanded = os.path.expanduser(env_val)
+        if os.path.isfile(expanded):
+            return expanded
+        if os.path.isdir(expanded):
+            for name in ('bundletool.jar', 'bundletool-all.jar'):
+                candidate = os.path.join(expanded, name)
+                if os.path.isfile(candidate):
+                    return candidate
+
+    # 2. PATH 中的 bundletool 命令（返回命令本身，调用方用 bundletool 直接执行）
+    import shutil as _shutil
+    bundletool_cmd = _shutil.which('bundletool')
+    if bundletool_cmd:
+        return bundletool_cmd
+
+    # 3. 脚本同目录
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    for name in ('bundletool.jar', 'bundletool-all.jar'):
+        candidate = os.path.join(script_dir, name)
+        if os.path.isfile(candidate):
+            return candidate
+
+    # 4. skill 缓存位置 ${ZIXIEKIT_TMP}/skill/apk-16kb-check/bundletool.jar
+    zixie_tmp = os.environ.get('ZIXIEKIT_TMP', os.path.join(str(Path.home()), '.zixiekit'))
+    for name in ('bundletool.jar', 'bundletool-all.jar'):
+        candidate = os.path.join(zixie_tmp, 'skill', 'apk-16kb-check', name)
+        if os.path.isfile(candidate):
+            return candidate
+
+    return None
+
+
+def _run_java_jar(jar_path: str, *args: str, timeout: int = 300):
+    """运行 java -jar <jar> <args>
+
+    兼容 bundletool 的两种形态：
+    - jar 文件路径 → java -jar <jar> ...
+    - 可执行命令（PATH 中的 bundletool wrapper）→ <cmd> ...
+    """
+    if jar_path.endswith('.jar'):
+        cmd = ['java', '-jar', jar_path] + list(args)
+    else:
+        cmd = [jar_path] + list(args)
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+
 # ============================================================================
 # 官方 zipalign 验证（仅 APK）
 # ============================================================================
@@ -82,11 +209,13 @@ def run_zipalign_verify(apk_path: str) -> ZipalignResult:
     """运行官方 zipalign 验证"""
     result = ZipalignResult()
 
-    zipalign_path = find_tool('zipalign')
+    zipalign_path, zipalign_version = find_zipalign()
     if not zipalign_path:
         return result
 
     result.available = True
+    result.version = zipalign_version
+    result.version_ok = _version_ge(zipalign_version, MIN_ZIPALIGN_VERSION)
 
     try:
         # 运行 zipalign -c -P 16 -v 4 <apk>
@@ -176,7 +305,7 @@ def run_elf_check(apk_path: str, extracted_so_dir: str = None) -> Tuple[List[Elf
 
     # 确保 zipalign 在 PATH 中（官方脚本内部也会调用 zipalign）
     env = os.environ.copy()
-    zipalign_path = find_tool('zipalign')
+    zipalign_path, _ = find_zipalign()
     if zipalign_path:
         zipalign_dir = os.path.dirname(zipalign_path)
         env['PATH'] = zipalign_dir + ':' + env.get('PATH', '')
@@ -190,6 +319,10 @@ def run_elf_check(apk_path: str, extracted_so_dir: str = None) -> Tuple[List[Elf
             env=env
         )
         raw_output = proc.stdout + proc.stderr
+        # 脚本异常退出（如 set -e 提前退出、解压失败）时附加退出码，
+        # 供上层区分「检查失败」与「APK 确实无 .so」
+        if proc.returncode != 0:
+            raw_output += f"\n[check_elf_alignment.sh 退出码: {proc.returncode}]"
 
         def strip_ansi(text: str) -> str:
             """去除 ANSI 颜色码（真正的 escape 和字面量 \\e[...m 两种形式）"""
@@ -303,7 +436,7 @@ def run_zipalign_fix(input_apk: str, output_apk: str) -> Tuple[bool, str]:
 
     返回: (成功, 错误信息)
     """
-    zipalign_path = find_tool('zipalign')
+    zipalign_path, _ = find_zipalign()
     if not zipalign_path:
         return False, "未找到 zipalign 工具"
 

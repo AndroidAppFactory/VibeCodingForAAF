@@ -121,7 +121,7 @@ def doc_inspect() -> DocInspectReport:
     # Step 4: 检查 SUMMARY.md 索引完整性
     summary_file = doc_root / "SUMMARY.md"
     if summary_file.exists():
-        summary_content = summary_file.read_text()
+        summary_content = summary_file.read_text(encoding="utf-8")
         report.missing_index = _check_summary_index(doc_root, summary_content)
 
     return report
@@ -144,7 +144,7 @@ def _scan_modules(aaf_root: Path) -> dict[str, dict[str, str]]:
 
     for dep_file in sorted(aaf_root.glob("dependencies_*.gradle")):
         module_type = type_map.get(dep_file.name, "other")
-        content = dep_file.read_text()
+        content = dep_file.read_text(encoding="utf-8")
 
         # 匹配 "ModuleName" : [ ... "artifactId" : "xxx" ... ]
         blocks = re.finditer(r'"(\w+)"\s*:\s*\[([^\]]+)\]', content, re.DOTALL)

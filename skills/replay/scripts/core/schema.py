@@ -42,6 +42,7 @@ class EventType(str, Enum):
     TYPE = "type"
     # adb 特有
     TAP = "tap"
+    MULTITAP = "multitap"
     SWIPE = "swipe"
     TEXT = "text"
     KEYEVENT = "keyevent"

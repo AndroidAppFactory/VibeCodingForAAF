@@ -1,7 +1,7 @@
 ---
 
 
-version: 1
+version: 2
 category: aaf
 name: aaf-sample-upgrade
 description: 升级 AAF Sample 项目（Template-AAF、Template_Android、Template-Empty）到最新 AAF 框架版本。当用户说"升级 AAF Sample"时使用此 skill

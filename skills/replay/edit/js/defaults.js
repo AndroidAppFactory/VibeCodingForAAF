@@ -14,6 +14,7 @@ const EVENT_DEFAULTS = {
   // ===== 各事件类型的后延迟（毫秒，下限 5000）=====
   delay_after_ms: {
     tap:       5000,
+    multitap:  5000,
     swipe:     5000,
     keyevent:  5000,
     text:      5000,
@@ -22,10 +23,13 @@ const EVENT_DEFAULTS = {
       'force-stop': 5000,
       'clear':      5000,
       'restart':    10000,
+      'launch':     8000,
       'clear-all':  5000,
       'lock-screen': 5000,
       'wifi-connect': 15000,
       'open-schema': 5000,
+      'uninstall':  5000,
+      'install':    15000,
       '_default':   5000,
     },
     '_default': 5000,

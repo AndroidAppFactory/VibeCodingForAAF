@@ -1,5 +1,5 @@
 ---
-version: 1
+version: 2
 category: aaf
 name: aaf-sample-apply
 description: 升级 Template-AAF 到最新 AAF 框架版本。当用户说"升级 Template-AAF"时使用此 skill

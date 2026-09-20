@@ -3,7 +3,7 @@
 
 
 name: aaf-release-check
-version: 1
+version: 2
 category: aaf
 description: AAF 发布前检查。当用户说"准备发布"、"发布前"、"release"、"发版"时使用此 skill
 

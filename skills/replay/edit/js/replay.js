@@ -27,25 +27,8 @@ function startReplay() {
   btn.textContent = '⏹️ 停止';
   btn.classList.add('active');
 
-  // 隐藏截屏切换按钮
-  const switchEl = document.getElementById('screenshot-switch');
-  if (switchEl) switchEl.style.display = 'none';
+  // 隐藏事件编辑面板（在手机框下方，不影响手机框位置）
   document.getElementById('edit-panel').style.display = 'none';
-
-  // 重放时保持当前缩放下的手机框尺寸不变，由 applyZoom() 统一管理
-
-  const frame = document.getElementById('phone-frame');
-
-  // 显示重放信息条
-  let infoBar = document.getElementById('replay-info');
-  if (!infoBar) {
-    infoBar = document.createElement('div');
-    infoBar.id = 'replay-info';
-    infoBar.style.cssText = 'margin-top:12px;padding:8px 16px;background:#1a3e2e;border:1px solid #27ae60;border-radius:8px;color:#eee;font-size:13px;text-align:center;min-width:300px';
-    frame.parentNode.insertBefore(infoBar, frame.nextSibling);
-  }
-  infoBar.style.display = 'block';
-  infoBar.textContent = '准备重放...';
 
   playNextEvent();
 }
@@ -60,18 +43,8 @@ function stopReplay() {
   }
 
   const btn = document.getElementById('btn-play');
-  btn.textContent = '▶️ 模拟重放';
+  btn.textContent = '▶️ 重放';
   btn.classList.remove('active');
-
-  // 手机框尺寸由 applyZoom() 统一管理，不手动恢复
-
-  // 恢复截屏切换按钮（如果有截屏数据）
-  const switchEl = document.getElementById('screenshot-switch');
-  if (switchEl) switchEl.style.display = 'none';
-
-  // 隐藏重放信息条
-  const infoBar = document.getElementById('replay-info');
-  if (infoBar) infoBar.style.display = 'none';
 
   renderEventList();
   renderCanvas();
@@ -91,28 +64,6 @@ function playNextEvent() {
   const ev = state.events[state.playIndex];
   const index = state.playIndex;
 
-  // 更新重放信息条
-  const infoBar = document.getElementById('replay-info');
-  if (infoBar) {
-    let desc = '';
-    if (ev.type === 'tap') {
-      desc = `tap(${ev.x}, ${ev.y})`;
-    } else if (ev.type === 'swipe') {
-desc = `swipe(${ev.x1},${ev.y1} → ${ev.x2},${ev.y2}, ${ev.duration_ms}ms)`;
-    } else if (ev.type === 'adb') {
-      desc = ev.action === 'wifi-connect' ? `WiFi: ${ev.ssid || ''}` : ev.action === 'lock-screen' ? '🔒 锁屏' : `adb: ${ev.action || ev.command || ''}`;
-    } else if (ev.type === 'tips') {
-      desc = `💡 ${ev.content || ''}`;
-    } else {
-      desc = ev.type;
-    }
-  const delayBeforeMs = ev.delay_before_ms || ev.delay_ms || EVENT_DEFAULTS.delay_before_ms;
-  const delayAfterMs = ev.delay_after_ms || getDelayAfterDefault(ev.type, ev.action);
-  const db = delayBeforeMs >= 1000 ? (delayBeforeMs / 1000).toFixed(1) + 's' : delayBeforeMs + 'ms';
-  const da = delayAfterMs >= 1000 ? (delayAfterMs / 1000).toFixed(1) + 's' : delayAfterMs + 'ms';
-    infoBar.textContent = `▶ ${index + 1}/${state.events.length}  ${desc}  前+${db}${ev.delay_after_ms ? ' 后+' + da : ''}`;
-  }
-
   // 高亮当前事件
   renderEventList();
   renderCanvas();
@@ -129,36 +80,14 @@ desc = `swipe(${ev.x1},${ev.y1} → ${ev.x2},${ev.y2}, ${ev.duration_ms}ms)`;
   const delay = delayMs;
   const canvas = document.getElementById('phone-canvas');
   const ss = ev.screenshots || {};
+  const hasScreenshot = !!(ss.before || ss.after);
   const hasVideo = ss.before_type === 'video' || ss.after_type === 'video';
 
-  // 阶段1：显示行为前截图/录屏，隐藏路径
-  canvas.style.opacity = '0';
-  currentScreenshotView = 'before';
-  showScreenshot(index);
-
-  // 阶段2：delay 后展示行为路径（视频模式下延长等待）
-  const phase2Delay = hasVideo && ss.before_type === 'video' ? Math.max(delay, 2000) : delay;
-  setTimeout(() => {
-    if (!state.isPlaying) return;
-    clearPhoneMedia();
-    canvas.style.opacity = '1';
-    renderCanvas();
-  }, phase2Delay);
-
-  // 阶段3：再 delay 后显示行为后截图/录屏，隐藏路径
-  setTimeout(() => {
-    if (!state.isPlaying) return;
-    canvas.style.opacity = '0';
-    currentScreenshotView = 'after';
-    showScreenshot(index);
-  }, phase2Delay + delay);
-
-  // 进入下一个事件（后截图/录屏展示后）
-  const phase4Delay = hasVideo && ss.after_type === 'video' ? Math.max(delay, 2000) : delay;
-  replayTimer = setTimeout(() => {
+  // 进入下一个事件的公共逻辑
+  const goNext = () => {
     if (!state.isPlaying) return;
     state.playIndex++;
-    // 最后一步：停留在后截图，不清除画面
+    // 最后一步：停留，不清除画面
     if (state.playIndex >= state.events.length) {
       state.isPlaying = false;
       state.playIndex = -1;
@@ -167,19 +96,42 @@ desc = `swipe(${ev.x1},${ev.y1} → ${ev.x2},${ev.y2}, ${ev.duration_ms}ms)`;
         replayTimer = null;
       }
       const btn = document.getElementById('btn-play');
-      btn.textContent = '▶️ 模拟重放';
+      btn.textContent = '▶️ 重放';
       btn.classList.remove('active');
       // 恢复工具栏和面板显示
       document.querySelectorAll('.phone-panel .toolbar').forEach(tb => {
         tb.style.display = '';
       });
-      // 手机框尺寸由 applyZoom() 统一管理，不手动恢复
-      const infoBar = document.getElementById('replay-info');
-      if (infoBar) infoBar.textContent = '✅ 重放完成（停留在最后一步截图）';
       return;
     }
     playNextEvent();
-  }, phase2Delay + delay + phase4Delay);
+  };
+
+  if (!hasScreenshot) {
+    // 无截图：只显示路径高亮（黑底红点，因为确实没截图）
+    clearPhoneMedia();
+    canvas.style.opacity = '1';
+    renderCanvas();
+    replayTimer = setTimeout(goNext, delay);
+    return;
+  }
+
+  // 有截图：路径只在「操作前截图」上显示，「操作后截图」不显示路径。
+  // 时序：操作前截图（路径叠加）→ delay → 操作后截图（无路径）→ delay → 下一个
+  canvas.style.opacity = '1';
+  currentScreenshotView = 'before';
+  showScreenshot(index);
+  renderCanvas();
+
+  const afterDelay = hasVideo && ss.after_type === 'video' ? Math.max(delay, 2000) : delay;
+  setTimeout(() => {
+    if (!state.isPlaying) return;
+    currentScreenshotView = 'after';
+    showScreenshot(index);
+    canvas.style.opacity = '0';  // 操作后截图不显示路径
+  }, delay);
+
+  replayTimer = setTimeout(goNext, delay + afterDelay);
 }
 
 } // 平台守卫结束

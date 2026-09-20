@@ -41,6 +41,7 @@ from pathlib import Path
 from models import Colors, CheckResult, ElfAlignResult, ZipalignResult
 from checker_apk import check_apk, try_fix_apk
 from checker_aar import check_aar
+from checker_aab import check_aab
 from checker_common import find_check_elf_script, get_ndk_version
 from so_source_analyzer import analyze_so_sources, analyze_so_sources_from_aars
 from report_html import generate_html_report
@@ -172,6 +173,7 @@ def main():
         print("用法:")
         print(f"  {sys.argv[0]} <APK文件路径> [HTML输出路径]")
         print(f"  {sys.argv[0]} <APK文件路径> --project <项目源码目录>")
+        print(f"  {sys.argv[0]} <AAB文件路径> [HTML输出路径]")
         print(f"  {sys.argv[0]} <AAR文件路径...> [HTML输出路径]")
         print(f"  {sys.argv[0]} <SO文件路径> [HTML输出路径]")
         print(f"  {sys.argv[0]} --batch <目录路径>")
@@ -179,6 +181,7 @@ def main():
         print("示例:")
         print(f"  {sys.argv[0]} app-release.apk")
         print(f"  {sys.argv[0]} app-release.apk --project /path/to/project")
+        print(f"  {sys.argv[0]} app-release.aab")
         print(f"  {sys.argv[0]} my-library.aar")
         print(f"  {sys.argv[0]} lib1.aar lib2.aar  # 多 AAR 合并检查")
         print(f"  {sys.argv[0]} libnative.so  # 直接检查 SO 文件")
@@ -186,6 +189,8 @@ def main():
         print()
         print("说明:")
         print("  APK: 直接检查 16KB 对齐（zipalign + ELF），失败时自动尝试 zipalign 修复")
+        print("  AAB: 自动 dump config 判读 + bundletool 转 universal APK 做 zipalign/ELF 验证")
+        print("       （本地 APK 通过 ≠ AAB 通过，AAB 是发布产物，必须用 bundletool 转出验证）")
         print("  AAR: 直接解压提取 .so 检查 ELF LOAD 段对齐（无需编译，秒级完成）")
         print("       AAR 是中间产物，zipalign 由宿主 APK 决定，因此跳过 zipalign 验证")
         print("       支持多个 AAR 文件一起检查")
@@ -199,6 +204,8 @@ def main():
         print("检查项:")
         print("  APK: 1. 官方 zipalign -c -P 16 -v 4 验证 APK 整体对齐")
         print("       2. 官方 check_elf_alignment.sh 检查 .so 的 ELF LOAD 段对齐")
+        print("  AAB: 1. bundletool dump config 判读 uncompressNativeLibraries + bundletool 版本")
+        print("       2. bundletool build-apks 转 universal APK 后做 zipalign + ELF 检查")
         print("  AAR: 仅 ELF LOAD 段对齐检查（核心检查项）")
         print("  SO:  仅 ELF LOAD 段对齐检查（开发调试）")
         sys.exit(1)
@@ -267,6 +274,7 @@ def main():
     if len(aar_paths) >= 1:
         is_aar = True
         is_so = False
+        is_aab = False
         html_output = None
         for arg in other_args:
             if arg.endswith('.html'):
@@ -281,12 +289,13 @@ def main():
             sys.exit(1)
 
         ext = Path(file_path).suffix.lower()
-        if ext not in ('.apk', '.so'):
+        if ext not in ('.apk', '.aab', '.so'):
             print(f"错误: 不支持的文件格式: {ext}")
-            print("支持的格式: .apk, .aar, .so")
+            print("支持的格式: .apk, .aab, .aar, .so")
             sys.exit(1)
         
         is_so = (ext == '.so')
+        is_aab = (ext == '.aab')
 
     # ==================== 执行检查 ====================
     if is_aar:
@@ -315,6 +324,14 @@ def main():
             html_path = html_output
         else:
             html_path = file_path.rsplit('.', 1)[0] + '_alignment_report.html'
+    elif is_aab:
+        # AAB 模式：dump config 前置判断 + bundletool 转 universal APK 做完整验证
+        if html_output:
+            html_path = html_output
+        else:
+            html_path = file_path.rsplit('.', 1)[0] + '_alignment_report.html'
+
+        result = check_aab(file_path)
     else:
         # APK 模式
         if html_output:
@@ -345,8 +362,8 @@ def main():
     has_compressed = result.has_compressed_so
     elf_failed = result.elf_failed > 0
 
-    # zipalign 失败时先执行自动修复（仅 APK 模式）
-    if zipalign_failed and not is_aar and not is_so:
+    # zipalign 失败时先执行自动修复（仅 APK 模式；AAB 无法用 zipalign 修复，需重新打包）
+    if zipalign_failed and not is_aar and not is_so and not is_aab:
         fix_result = try_fix_apk(file_path)
         result.fix_result = fix_result
 
@@ -379,6 +396,10 @@ def main():
     if elf_failed or (not is_aar and not is_so and (zipalign_failed or has_compressed)):
         if elf_failed:
             print(f"\n{c.YELLOW}⚠️  注意：ELF LOAD 段对齐问题无法通过 zipalign 修复，需重新编译 SO 文件{c.NC}")
+        if is_aab and zipalign_failed:
+            print(f"\n{c.RED}❌ AAB 转出的分发 APK 未通过 16KB ZIP 对齐（zipalign 验证失败，{result.zipalign.fail_count} 个未对齐）{c.NC}")
+            print(f"{c.YELLOW}   根因见上方「AAB 打包配置判读」：AAB 无法用 zipalign 直接修复，需重新 bundleRelease{c.NC}")
+            print(f"{c.YELLOW}   （升级 AGP ≥ 8.5.1，或设 useLegacyPackaging = true）{c.NC}")
         sys.exit(1)
     else:
         print()
@@ -386,6 +407,8 @@ def main():
             print(f"{c.GREEN}🎉 AAR 中所有 SO 库均已通过 ELF LOAD 段 16KB 对齐检查！{c.NC}")
         elif is_so:
             print(f"{c.GREEN}🎉 SO 库已通过 ELF LOAD 段 16KB 对齐检查！{c.NC}")
+        elif is_aab:
+            print(f"{c.GREEN}🎉 AAB 转出的分发 APK 已通过 16KB 对齐检查（zipalign + ELF LOAD 段）！{c.NC}")
         else:
             print(f"{c.GREEN}🎉 所有 SO 库均已通过 16KB 对齐检查（zipalign + ELF LOAD 段）！{c.NC}")
         sys.exit(0)

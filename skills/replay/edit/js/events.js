@@ -98,6 +98,10 @@ function showEditPanel(index) {
   if (type === 'tap' || type === 'click' || type === 'dblclick' || type === 'rclick' || type === 'rightclick' || type === 'hover' || type === 'move') {
     html += `<div class="edit-row"><label>X</label><input type="number" value="${ev.x ?? ''}" onchange="updateField(${index}, 'x', this.value)"></div>`;
     html += `<div class="edit-row"><label>Y</label><input type="number" value="${ev.y ?? ''}" onchange="updateField(${index}, 'y', this.value)"></div>`;
+  } else if (type === 'multitap') {
+    html += `<div class="edit-row"><label>X</label><input type="number" value="${ev.x ?? ''}" onchange="updateField(${index}, 'x', this.value)"></div>`;
+    html += `<div class="edit-row"><label>Y</label><input type="number" value="${ev.y ?? ''}" onchange="updateField(${index}, 'y', this.value)"></div>`;
+    html += `<div class="edit-row"><label>点击次数</label><input type="number" value="${ev.count ?? 2}" step="1" min="1" onchange="updateField(${index}, 'count', this.value)"></div>`;
   } else if (type === 'swipe' || type === 'drag') {
     html += `<div class="edit-row"><label>起点 X</label><input type="number" value="${ev.x1 ?? ''}" onchange="updateField(${index}, 'x1', this.value)"></div>`;
     html += `<div class="edit-row"><label>起点 Y</label><input type="number" value="${ev.y1 ?? ''}" onchange="updateField(${index}, 'y1', this.value)"></div>`;
@@ -131,15 +135,19 @@ function showEditPanel(index) {
   } else if (type === 'adb') {
     const isWifi = ev.action === 'wifi-connect';
     const isSchema = ev.action === 'open-schema';
+    const isInstall = ev.action === 'install';
     html += `<div class="edit-row"><label>操作</label>
       <select onchange="updateTextField(${index}, 'action', this.value);showEditPanel(${index})" style="flex:1;padding:4px 8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#eee;font-size:12px;max-width:140px">
         <option value="force-stop" ${ev.action === 'force-stop' ? 'selected' : ''}>杀掉应用</option>
         <option value="clear" ${ev.action === 'clear' ? 'selected' : ''}>清理缓存</option>
         <option value="restart" ${ev.action === 'restart' ? 'selected' : ''}>应用重启</option>
+        <option value="launch" ${ev.action === 'launch' ? 'selected' : ''}>拉起应用</option>
         <option value="clear-all" ${ev.action === 'clear-all' ? 'selected' : ''}>清理所有后台</option>
         <option value="lock-screen" ${ev.action === 'lock-screen' ? 'selected' : ''}>锁屏</option>
         <option value="wifi-connect" ${ev.action === 'wifi-connect' ? 'selected' : ''}>连接 WiFi</option>
         <option value="open-schema" ${ev.action === 'open-schema' ? 'selected' : ''}>打开 Schema</option>
+        <option value="uninstall" ${ev.action === 'uninstall' ? 'selected' : ''}>卸载应用</option>
+        <option value="install" ${ev.action === 'install' ? 'selected' : ''}>安装 APK</option>
       </select>
     </div>`;
     if (isWifi) {
@@ -147,6 +155,8 @@ function showEditPanel(index) {
       html += `<div class="edit-row"><label>密码</label><input type="password" value="${ev.password || ''}" onchange="updateTextField(${index}, 'password', this.value)" style="flex:1;padding:4px 8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#eee"></div>`;
     } else if (isSchema) {
       html += `<div class="edit-row"><label>Schema URI</label><input type="text" value="${ev.content || ''}" oninput="updateTextField(${index}, 'content', this.value)" style="flex:1;padding:4px 8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#eee" placeholder="zixie://zweb?url=https://..."></div>`;
+    } else if (isInstall) {
+      html += `<div class="edit-row"><label>文件名</label><input type="text" value="${ev.content || ''}" onchange="updateTextField(${index}, 'content', this.value)" placeholder="APK 文件名（可省略 .apk，放 ~/.zixiekit/skill/replay/install/）"></div>`;
     } else {
       html += `<div class="edit-row"><label>包名</label><input type="text" value="${ev.package || ''}" onchange="updateTextField(${index}, 'package', this.value)" ${ev.action !== 'clear-all' ? '' : 'disabled'}></div>`;
     }
@@ -171,6 +181,7 @@ function showEditPanel(index) {
     <select onchange="updateTextField(${index}, 'capture_mode', this.value)" style="flex:1;padding:4px 8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#eee;font-size:12px;max-width:140px">
       <option value="screenshot" ${(ev.capture_mode || 'screenshot') === 'screenshot' ? 'selected' : ''}>截屏</option>
       <option value="video" ${ev.capture_mode === 'video' ? 'selected' : ''}>录屏</option>
+      <option value="none" ${ev.capture_mode === 'none' ? 'selected' : ''}>跳过采集</option>
     </select>
   </div>`;
 
@@ -227,6 +238,12 @@ function changeEventType(index, newType) {
       newEvent.y = ev.y || 0;
       newEvent.delay_after_ms = ev.delay_after_ms || getDelayAfterDefault('tap');
       break;
+    case 'multitap':
+      newEvent.x = ev.x || 0;
+      newEvent.y = ev.y || 0;
+      newEvent.count = ev.count || 2;
+      newEvent.delay_after_ms = ev.delay_after_ms || getDelayAfterDefault('multitap');
+      break;
     case 'swipe':
       newEvent.x1 = ev.x1 || 0;
       newEvent.y1 = ev.y1 || 0;
@@ -250,6 +267,8 @@ function changeEventType(index, newType) {
         newEvent.ssid = ev.ssid || '';
         newEvent.password = ev.password || '';
         newEvent.security = ev.security || 'wpa2';
+      } else if (newEvent.action === 'open-schema' || newEvent.action === 'install') {
+        newEvent.content = ev.content || '';
       }
       newEvent.delay_after_ms = ev.delay_after_ms || getDelayAfterDefault('adb', newEvent.action);
       break;

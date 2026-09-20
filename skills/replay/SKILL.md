@@ -1,6 +1,6 @@
 ---
 name: replay
-version: 1
+version: 18
 category: test
 description: 四端 UI 自动化录制与回放 — adb/web/mac/win，共享 core 内核（Flow 编排、报告、通知、前端）
 ---
@@ -43,33 +43,29 @@ core 提供所有"录制后"能力，各端只保留**录制器**（平台采集
 
 ## CLI 命令
 
+> ⚠️ 命令结构以 `zk replay <cmd> --help` 实际输出为准，本文档可能滞后于代码实现；修改命令提示前先实跑验证。
+
 ```bash
-# ZixieKit 内（zk 命令）
-zk replay {adb|web|win|mac} record [名称]
-# 独立部署（python3）
+# ZixieKit 内（zk 命令；平台作为位置参数，run/report 自动解析平台）
+zk replay record {adb|web|win} [名称]
+zk replay play <录制目录>
+zk replay edit <录制目录>
+zk replay run <id>
+zk replay report <id>
+zk replay manage
+zk replay doctor {adb|web|win}
+zk replay init {adb|web|win}
+zk replay install {adb|web}
+zk replay clean --days 7
+
+# 独立部署（python3；platform ∈ adb/web/win/mac）
 python3 replay/scripts/{adb|web|win|mac}/cli/main.py record [名称]
-
-# 回放录制文件
-zk replay {adb|web|win|mac} play <录制目录>
 python3 replay/scripts/{adb|web|win|mac}/cli/main.py play <录制目录>
-
-# 运行 Flow
-zk replay {adb|web|win|mac} flow run <id>
+python3 replay/scripts/{adb|web|win|mac}/cli/main.py edit <录制目录>
 python3 replay/scripts/{adb|web|win|mac}/cli/main.py flow run <id>
-
-# 生成 Flow 报告
-zk replay {adb|web|win|mac} flow report <id>
 python3 replay/scripts/{adb|web|win|mac}/cli/main.py flow report <id>
-
-# Flow 管理器（全局入口，跨平台）
-zk replay flow manage
 python3 replay/scripts/core/manage.py --port 8090
-
-# 环境检查/初始化
-zk replay {adb|web|win|mac} doctor
 python3 replay/scripts/{adb|web|win|mac}/cli/main.py doctor
-
-zk replay {adb|web|win|mac} init
 python3 replay/scripts/{adb|web|win|mac}/cli/main.py init
 ```
 

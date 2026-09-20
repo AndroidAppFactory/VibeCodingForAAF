@@ -19,6 +19,13 @@ function updateStats() {
     `${total} 个事件 · 总时长 ${totalDelay >= 60000 ? (totalDelay / 60000).toFixed(1) + 'm' : (totalDelay / 1000).toFixed(1) + 's'}`;
 }
 
+function updateFlowName() {
+  const el = document.getElementById('panel-title');
+  if (!el) return;
+  const name = window.__FLOW_NAME || (state.data && (state.data._flow_name || state.data.name)) || '';
+  el.textContent = name ? `📋 ${name} 事件列表` : '📋 事件列表';
+}
+
 function renderEventList() {
   const list = document.getElementById('event-list');
 
@@ -29,6 +36,7 @@ function renderEventList() {
         <p>暂无事件</p>
       </div>`;
     document.getElementById('edit-panel').style.display = 'none';
+    updateFlowName();
     return;
   }
 
@@ -77,16 +85,28 @@ function renderEventList() {
           <button onclick="deleteEvent(${i}); event.stopPropagation();" title="删除">✕</button>
         </div>
       </div>`;  }).join('');
+
+  updateFlowName();
 }
 
 function getEventIcon(type) {
   switch (type) {
     case 'tap': return '👆';
+    case 'multitap': return '👆👆';
     case 'swipe': return '👉';
     case 'keyevent': return '⌨️';
     case 'text': return '📝';
     case 'adb': return '📦';
     case 'tips': return '💡';
+    case 'click': return '👆';
+    case 'dblclick': return '👆👆';
+    case 'rclick': case 'rightclick': return '🖱️';
+    case 'move': case 'hover': case 'scroll': return '🖱️';
+    case 'drag': return '✋';
+    case 'type': return '📝';
+    case 'keyboard': case 'hotkey': return '⌨️';
+    case 'launch': return '🚀';
+    case 'quit': return '⏏️';
     default: return '❓';
   }
 }
@@ -94,11 +114,21 @@ function getEventIcon(type) {
 function getEventDetail(ev) {
   switch (ev.type) {
     case 'tap': return `(${ev.x}, ${ev.y})`;
+    case 'multitap': return `(${ev.x}, ${ev.y}) ×${ev.count || 2}`;
 case 'swipe': return `(${ev.x1},${ev.y1}) → (${ev.x2},${ev.y2}) ${ev.duration_ms}ms`;
     case 'keyevent': return `code: ${ev.code}`;
     case 'text': return `"${ev.content}"`;
-    case 'adb': return ev.action === 'wifi-connect' ? `WiFi: ${ev.ssid || ''}` : ev.action === 'open-schema' ? `Schema: ${ev.content || ''}` : ev.action === 'clear-all' ? '清理所有后台应用' : ev.action === 'lock-screen' ? '🔒 锁屏' : `${ev.action} ${ev.package || ''}`;
+    case 'adb': return ev.action === 'wifi-connect' ? `WiFi: ${ev.ssid || ''}` : ev.action === 'open-schema' ? `Schema: ${ev.content || ''}` : ev.action === 'clear-all' ? '清理所有后台应用' : ev.action === 'lock-screen' ? '🔒 锁屏' : ev.action === 'launch' ? `拉起应用: ${ev.package || ''}` : ev.action === 'uninstall' ? `卸载应用: ${ev.package || ''}` : ev.action === 'install' ? `安装 APK: ${ev.content || ''}` : `${ev.action} ${ev.package || ''}`;
     case 'tips': return ev.content ? `"${ev.content}"` : '(空提示)';
+    case 'click': case 'move': case 'hover': return `(${ev.x}, ${ev.y})`;
+    case 'dblclick': return `(${ev.x}, ${ev.y}) ×2`;
+    case 'rclick': case 'rightclick': return `右键 (${ev.x}, ${ev.y})`;
+    case 'drag': return `(${ev.x1},${ev.y1}) → (${ev.x2},${ev.y2}) ${ev.duration_ms || 0}ms`;
+    case 'scroll': return `(${ev.x}, ${ev.y}) dx=${ev.delta_x} dy=${ev.delta_y}`;
+    case 'type': return `"${ev.content}"`;
+    case 'keyboard': case 'hotkey': return (ev.keys || []).join('+');
+    case 'launch': return `启动 ${ev.target || ''}`;
+    case 'quit': return `退出 ${ev.target || ''}`;
     default: return JSON.stringify(ev);
   }
 }
@@ -107,12 +137,18 @@ function renderCanvas() {
   const canvas = document.getElementById('phone-canvas');
   const ctx = canvas.getContext('2d');
 
+  // 确保路径可见（重放自然结束后 opacity 可能残留 0）
+  canvas.style.opacity = '1';
+
   // 设置 canvas 实际尺寸
   canvas.width = PHONE_W * 2;
   canvas.height = PHONE_H * 2;
   ctx.scale(2, 2); // HiDPI
 
   ctx.clearRect(0, 0, PHONE_W, PHONE_H);
+
+  // 仅 adb 平台画点击位置：win/web 截图已含标记，且画布为手机竖屏比例、坐标对不上
+  if ((window.__FLOW_PLATFORM || 'adb') !== 'adb') return;
 
   if (!state.events.length) return;
 

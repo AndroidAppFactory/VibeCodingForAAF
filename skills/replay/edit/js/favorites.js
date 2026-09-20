@@ -62,7 +62,7 @@ async function insertFavorite(favIndex) {
       const stype = s.type || 'event';
       if (stype === 'event') {
         const ev = {type: s.action || 'tap'};
-        for (const k of ['x','y','x1','y1','x2','y2','duration_ms','code','content','delay_before_ms','delay_after_ms']) {
+        for (const k of ['x','y','x1','y1','x2','y2','duration_ms','count','code','content','delay_before_ms','delay_after_ms']) {
           if (s[k] !== undefined) ev[k] = s[k];
         }
         if (s.action === 'adb') {
@@ -101,7 +101,7 @@ async function saveToFavorites() {
       if (ev._task_type === 'pause') return {type: 'pause', hint: ev._task_hint || ''};
       if (ev._task_type === 'adb_cmd') return {type: 'adb_cmd', command: ev._task_command || ''};
       const step = {type: 'event', action: ev.type || 'tap'};
-      for (const k of ['x','y','x1','y1','x2','y2','duration_ms','code','content','delay_before_ms','delay_after_ms']) {
+      for (const k of ['x','y','x1','y1','x2','y2','duration_ms','count','code','content','delay_before_ms','delay_after_ms']) {
         if (ev[k] !== undefined) step[k] = ev[k];
       }
       if (ev.type === 'adb') {
@@ -116,7 +116,7 @@ async function saveToFavorites() {
     await fetch('/api/flow/save', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({flow: {name: name.trim(), steps: steps, group: '⭐收藏', device: state.device, resolution: state.resolution}})
+      body: JSON.stringify({flow: {name: name.trim(), platform: window.__FLOW_PLATFORM, steps: steps, group: '⭐收藏', device: state.device, resolution: state.resolution}})
     });
     state.multiSelected.clear();
     toast('已保存 → ' + name.trim());

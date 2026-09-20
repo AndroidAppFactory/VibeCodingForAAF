@@ -17,6 +17,7 @@ def cmd_play(args) -> int:
     repeat = getattr(args, "repeat", 1)
     headless = getattr(args, "headless", False)
     timeout = getattr(args, "timeout", 30)
+    max_delay = getattr(args, "max_delay", None)
 
     # 解析录制路径
     rec_path = Path(target)
@@ -51,7 +52,7 @@ def cmd_play(args) -> int:
     for i in range(repeat):
         if repeat > 1:
             print(f"\n🔄 第 {i+1}/{repeat} 次回放")
-        result = run_flow_events(events, run_dir, headless=headless, timeout=timeout, speed=speed)
+        result = run_flow_events(events, run_dir, headless=headless, timeout=timeout, speed=speed, max_delay=max_delay)
 
     script = str(Path(__file__).resolve().parents[1] / "web_replay.py")
     tips_after_play("web", str(rec_path), script_path=script)

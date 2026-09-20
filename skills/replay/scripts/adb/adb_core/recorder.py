@@ -14,7 +14,11 @@ import time as _time
 from pathlib import Path
 
 # 加载环境变量（~/.zixiekit/scripts/bootstrap.py 由 zk init / zk instance update 部署）
-sys.path.insert(0, str(Path.home() / ".zixiekit" / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 from bootstrap import load_env  # noqa: E402
 
 load_env()
@@ -22,15 +26,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-# 查找全局工具模块（adb_tools 在 ZixieKit 根 scripts/ 下）
-_self = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_self))
-_zk = os.environ.get("ZIXIEKIT_HOME")
-if _zk:
-    sys.path.insert(0, str(Path(_zk) / "scripts"))
-del _self, _zk
-
-from adb_tools import get_adb_cmd, check_adb_connection, get_device_info, find_touch_device, get_touch_max, take_screenshot  # noqa: E402
+from adb_tools import (  # noqa: E402
+    get_adb_cmd, check_adb_connection, get_device_info,
+    find_touch_device, get_touch_max, take_screenshot,
+    get_display_rotation, print_rotation_check,
+)
 
 
 def _check_tracking_id(adb: list[str], event_dev: str, model: str) -> None:
@@ -107,9 +107,12 @@ def record(output_path: str, device: Optional[str] = None, verbose: bool = False
         print("❌ ADB 连接失败，请检查设备连接状态")
         sys.exit(1)
 
-    model, resolution = get_device_info(device)
+    model, physical_res = get_device_info(device)
+    rotation = get_display_rotation(device)
     print(f"   设备: {model}")
-    print(f"   分辨率: {resolution[0]}x{resolution[1]}")
+    print(f"   物理分辨率: {physical_res[0]}x{physical_res[1]}")
+    if rotation in (90, 270):
+        print_rotation_check(device)
 
     event_dev = find_touch_device(device)
     print(f"   触摸设备: {event_dev}")
@@ -123,16 +126,20 @@ def record(output_path: str, device: Optional[str] = None, verbose: bool = False
     if enable_screenshot:
         print("📸 截图功能: 已启用")
 
-    session = RecordSession(device=model, resolution=resolution)
+    # 坐标统一存「物理自然方向坐标」（evdev 按物理分辨率线性映射，不随旋转），
+    # 分辨率字段也存物理自然方向（wm size），与历史 flow 数据语义一致；
+    # 回放侧在 input tap 前再按当前屏幕旋转映射为逻辑显示坐标。
+    session = RecordSession(device=model, resolution=physical_res)
 
-    scale_x = resolution[0] / max_x if max_x > 0 else 1.0
-    scale_y = resolution[1] / max_y if max_y > 0 else 1.0
+    scale_x = physical_res[0] / max_x if max_x > 0 else 1.0
+    scale_y = physical_res[1] / max_y if max_y > 0 else 1.0
 
     log_path = os.path.join(os.path.dirname(output_path), "data.log")
     log_file = open(log_path, "w", encoding="utf-8")
     log_file.write(f"# ADB 录制详细日志\n")
     log_file.write(f"# 设备: {model}\n")
-    log_file.write(f"# 分辨率: {resolution[0]}x{resolution[1]}\n")
+    log_file.write(f"# 物理分辨率: {physical_res[0]}x{physical_res[1]}\n")
+    log_file.write(f"# 屏幕旋转: {rotation}°\n")
     log_file.write(f"# 触摸设备: {event_dev}\n")
     log_file.write(f"# 触摸范围: {max_x}x{max_y}\n")
     log_file.write(f"# 缩放比例: x={scale_x:.4f}, y={scale_y:.4f}\n")
@@ -331,6 +338,7 @@ def record(output_path: str, device: Optional[str] = None, verbose: bool = False
     output = {
         "device": session.device,
         "resolution": list(session.resolution),
+        "rotation": rotation,
         "events": session.events,
     }
 

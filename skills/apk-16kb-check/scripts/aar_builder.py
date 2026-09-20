@@ -13,7 +13,11 @@ from typing import List, Optional, Tuple
 from pathlib import Path
 
 # 加载环境变量（~/.zixiekit/scripts/bootstrap.py 由 zk init / zk instance update 部署）
-sys.path.insert(0, str(Path.home() / ".zixiekit" / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 from bootstrap import load_env  # noqa: E402
 load_env()
 

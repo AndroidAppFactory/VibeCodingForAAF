@@ -30,13 +30,13 @@ def cmd_doctor(args) -> int:
         import pynput  # noqa: F401
         log_success("pynput 可用")
     except ImportError:
-        log_error("pynput 未安装", "运行: zk replay win init")
+        log_error("pynput 未安装", "运行: zk replay init win")
         return 1
     try:
         from PIL import Image  # noqa: F401
         log_success("Pillow 可用")
     except ImportError:
-        log_error("Pillow 未安装", "运行: zk replay win init")
+        log_error("Pillow 未安装", "运行: zk replay init win")
         return 1
     log_success("环境检查完成")
     return 0

@@ -102,7 +102,7 @@ def _check_version(aaf_root: Path) -> CheckItem:
     if not deps_gradle.exists():
         return CheckItem(name="版本号检查", passed=False, message="dependencies.gradle 不存在")
 
-    content = deps_gradle.read_text()
+    content = deps_gradle.read_text(encoding="utf-8")
     m = re.search(r'moduleVersionName\s*=\s*["\']([^"\']+)["\']', content)
     if not m:
         return CheckItem(name="版本号检查", passed=False, message="无法解析 moduleVersionName")
@@ -196,7 +196,7 @@ def _check_develop_modules(aaf_root: Path) -> CheckItem:
 
     # 读取 developModule
     deps_gradle = aaf_root / "dependencies.gradle"
-    content = deps_gradle.read_text()
+    content = deps_gradle.read_text(encoding="utf-8")
     # 匹配 ext.developModule = ["Module1", "Module2", ...]
     m = re.search(r'developModule\s*=\s*\[([^\]]+)\]', content, re.DOTALL)
     if not m:
@@ -270,7 +270,7 @@ def _check_dependency_changes(aaf_root: Path) -> CheckItem:
     affected_modules = set()
     for build_gradle in aaf_root.glob("*/build.gradle"):
         module_name = build_gradle.parent.name
-        content = build_gradle.read_text()
+        content = build_gradle.read_text(encoding="utf-8")
         for key in changed_keys:
             if key in content:
                 affected_modules.add(module_name)
@@ -288,7 +288,7 @@ def _check_dependency_changes(aaf_root: Path) -> CheckItem:
 
     # 检查受影响模块是否在 developModule 中
     deps_gradle = aaf_root / "dependencies.gradle"
-    content = deps_gradle.read_text()
+    content = deps_gradle.read_text(encoding="utf-8")
     m = re.search(r'developModule\s*=\s*\[([^\]]+)\]', content, re.DOTALL)
     develop_modules = set(re.findall(r'"(\w+)"', m.group(1))) if m else set()
 

@@ -9,7 +9,7 @@ import json
 import os
 from pathlib import Path
 
-from core.config import FLOW_RUNS_DIR, HTML_DIR
+from core.config import FLOW_RUNS_DIR, HTML_DIR, SCRIPTS_DIR
 from core.flow import save_flow, load_flow, list_flows, delete_flow
 from core.hsrv.base import BaseEditHandler
 
@@ -37,6 +37,7 @@ def _inject_last_run_screenshots(flow_name: str, events: list[dict]) -> None:
     resolved_id = resolved["id"] if resolved else ""
 
     run_dir = None
+    is_direct = False
     for d in sorted(FLOW_RUNS_DIR.iterdir(), reverse=True):
         if not d.is_dir():
             continue
@@ -47,9 +48,26 @@ def _inject_last_run_screenshots(flow_name: str, events: list[dict]) -> None:
             s = json.loads(sf.read_text(encoding="utf-8"))
             if resolved_id and s.get("flow_id") == resolved_id:
                 run_dir = d
+                is_direct = True
                 break
         except (json.JSONDecodeError, OSError):
             continue
+
+    # 回退：flow 作为子 flow 运行时，找 steps 里含该 flow_id 的运行目录
+    if not run_dir and resolved_id:
+        for d in sorted(FLOW_RUNS_DIR.iterdir(), reverse=True):
+            if not d.is_dir():
+                continue
+            sf = d / "summary.json"
+            if not sf.exists():
+                continue
+            try:
+                s = json.loads(sf.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            if any(st.get("flow_id") == resolved_id for st in s.get("steps", [])):
+                run_dir = d
+                break
 
     if not run_dir:
         return
@@ -59,6 +77,9 @@ def _inject_last_run_screenshots(flow_name: str, events: list[dict]) -> None:
     # 从 summary.json 读取步骤对应关系
     summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
     run_steps = summary.get("steps", [])
+    # 子 flow 场景：只注入该 flow 的步骤
+    if not is_direct and resolved_id:
+        run_steps = [st for st in run_steps if st.get("flow_id") == resolved_id]
 
     # 只处理 event 类型的步骤（跳过 pause/adb_cmd）
     event_idx = 0
@@ -119,7 +140,8 @@ def _export_replay(body: dict) -> str:
                 ev = {"type": s.get("action", "tap")}
                 for k in ("x", "y", "x1", "y1", "x2", "y2", "duration_ms",
                            "code", "content", "adb_action", "package",
-                           "delay_before_ms", "delay_after_ms", "is_critical"):
+                           "delay_before_ms", "delay_after_ms", "is_critical",
+                           "capture_mode"):
                     if k in s and s[k] is not None and s[k] != "":
                         ev[k] = s[k]
                 if s.get("adb_action"):
@@ -145,6 +167,9 @@ def _serve_flow_editor(handler, flow_name: str) -> bool:
         handler.send_response(404)
         handler.end_headers()
         return False
+
+    # 展示用名称：URL 里传的是 id，这里取真实 name
+    flow_display_name = flow.get("name") or flow_name
 
     # 转换为 editor 事件格式
     events = []
@@ -181,8 +206,9 @@ def _serve_flow_editor(handler, flow_name: str) -> bool:
     default_profile_data = profiles.get(default_profile_key, {})
     device = default_profile_data.get("device", flow.get("device", "flow_edit"))
     resolution = default_profile_data.get("resolution", flow.get("resolution", [1080, 2340]))
-    data = json.dumps({"device": device, "resolution": resolution, "events": events,
-                        "_flow_name": flow_name}, ensure_ascii=False)
+    rotation = meta.get("rotation", default_profile_data.get("rotation", 0))
+    data = json.dumps({"device": device, "resolution": resolution, "rotation": rotation,
+                        "events": events, "_flow_name": flow_display_name}, ensure_ascii=False)
 
     editor_html = HTML_DIR / "editor.html"
     if not editor_html.exists():
@@ -193,10 +219,10 @@ def _serve_flow_editor(handler, flow_name: str) -> bool:
     html = editor_html.read_text(encoding="utf-8")
     html = html.replace('href="css/', 'href="/css/')
     html = html.replace('src="js/', 'src="/js/')
-    flow_platform = flow.get("platform", "")
+    flow_platform = flow.get("platform") or ""
     inject = f"""<script>
 window.__FLOW_EDIT=true;
-window.__FLOW_NAME={json.dumps(flow_name, ensure_ascii=False)};
+window.__FLOW_NAME={json.dumps(flow_display_name, ensure_ascii=False)};
 window.__FLOW_PLATFORM={json.dumps(flow_platform, ensure_ascii=False)};
 window.__DEVICE_PROFILES={json.dumps(profiles, ensure_ascii=False)};
 window.__DEFAULT_PROFILE={json.dumps(default_profile_key, ensure_ascii=False)};
@@ -217,7 +243,7 @@ document.addEventListener('DOMContentLoaded',function(){{
       if(!copy.capture_mode||copy.capture_mode==='screenshot')delete copy.capture_mode;
       return copy;
     }});
-    var output={{events:cleanEvents,_flow_name:{json.dumps(flow_name, ensure_ascii=False)},device:state.device,resolution:state.resolution,profiles:deviceProfiles,currentProfile:currentProfileKey}};
+    var output={{events:cleanEvents,_flow_name:{json.dumps(flow_name, ensure_ascii=False)},device:state.device,resolution:state.resolution,rotation:state.rotation,profiles:deviceProfiles,currentProfile:currentProfileKey}};
     fetch('/api/editor/save',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(output)}})
       .then(function(r){{return r.json()}})
       .then(function(d){{if(d.ok){{state.isDirty=false;renderEventList();updateStats();alert('✅ 已保存到 Flow');}}else{{throw new Error(d.error||'保存失败');}}}})
@@ -239,7 +265,7 @@ document.addEventListener('DOMContentLoaded',function(){{
       if(!copy.is_critical)delete copy.is_critical;
       return copy;
     }});
-    fetch('/api/editor/save-as',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{name:newName,events:cleanEvents,device:state.device,resolution:state.resolution,profiles:deviceProfiles,currentProfile:currentProfileKey}})}})
+    fetch('/api/editor/save-as',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{name:newName,events:cleanEvents,device:state.device,resolution:state.resolution,rotation:state.rotation,profiles:deviceProfiles,currentProfile:currentProfileKey,platform:window.__FLOW_PLATFORM}})}})
       .then(function(r){{return r.json()}})
       .then(function(d){{if(d.ok){{state.isDirty=false;alert('✅ 已另存为 Flow「'+d.name+'」');}}else{{throw new Error(d.error||'另存失败');}}}})
       .catch(function(e){{alert('❌ '+e.message)}});
@@ -254,7 +280,8 @@ document.addEventListener('DOMContentLoaded',function(){{
 def _save_flow_events(flow_name: str, events: list[dict],
                       device: str = "", resolution: list | None = None,
                       profiles: dict | None = None,
-                      current_profile: str = "") -> bool:
+                      current_profile: str = "",
+                      rotation: int = 0) -> bool:
     """将 editor 事件保存回 Flow"""
     flow = load_flow(flow_name)
     if not flow:
@@ -276,7 +303,7 @@ def _save_flow_events(flow_name: str, events: list[dict],
                 "type",            # 映射为 step.action
                 "action",          # adb 事件时映射为 step.adb_action
                 "_task_type", "_task_hint", "_task_command",
-                "capture_mode", "screenshots", "delay_ms",
+                "screenshots", "delay_ms",
             })
             step = {"type": "event", "action": ev.get("type", "tap")}
             # 所有未排除的字段原样复制
@@ -318,6 +345,12 @@ def _save_flow_events(flow_name: str, events: list[dict],
         flow.pop("resolution", None)
         flow.pop("profiles", None)
         flow.pop("default_profile", None)
+    # rotation 存 meta 顶层（横屏 90/270，竖屏 0 时清除）
+    meta = flow.setdefault("meta", {})
+    if rotation:
+        meta["rotation"] = rotation
+    else:
+        meta.pop("rotation", None)
     save_flow(flow)
     return True
 
@@ -325,7 +358,9 @@ def _save_flow_events(flow_name: str, events: list[dict],
 def _save_flow_as_new(name: str, events: list[dict],
                       device: str = "", resolution: list | None = None,
                       profiles: dict | None = None,
-                      current_profile: str = "") -> bool:
+                      current_profile: str = "",
+                      platform: str = "",
+                      rotation: int = 0) -> bool:
     """将 editor 事件另存为新 Flow"""
     steps = []
     for ev in events:
@@ -338,7 +373,7 @@ def _save_flow_as_new(name: str, events: list[dict],
             # 黑名单：从 event 拷贝到 step 时排除的内部字段
             _SAVE_BLACKLIST = frozenset({
                 "type", "action", "_task_type", "_task_hint", "_task_command",
-                "capture_mode", "screenshots", "delay_ms",
+                "screenshots", "delay_ms",
             })
             step = {"type": "event", "action": ev.get("type", "tap")}
             for k, v in ev.items():
@@ -351,7 +386,7 @@ def _save_flow_as_new(name: str, events: list[dict],
             if "is_critical" in ev:
                 step["is_critical"] = ev["is_critical"]
             steps.append(step)
-    flow = {"name": name, "platform": "adb", "description": "", "steps": steps}
+    flow = {"name": name, "platform": platform, "description": "", "steps": steps}
     # D19：device/resolution/profiles 统一存 meta
     if profiles or device or resolution:
         meta = {}
@@ -362,6 +397,8 @@ def _save_flow_as_new(name: str, events: list[dict],
             key = f"{resolution[0]}x{resolution[1]}"
             meta["profiles"] = {key: {"device": device, "resolution": resolution, "density": 0}}
             meta["default_profile"] = key
+        if rotation:
+            meta["rotation"] = rotation
         flow["meta"] = meta
     save_flow(flow)
     print(f"📂 另存为新 Flow: {name}")
@@ -456,7 +493,7 @@ def _serve_replay(handler, path):
     platform = "adb"
     try:
         raw = data_file.read_text(encoding="utf-8")
-        platform = json.loads(raw).get("platform", "adb")
+        platform = json.loads(raw).get("platform") or "adb"
     except Exception:
         pass
     s = f"""<script>
@@ -468,28 +505,6 @@ window.__REPLAY_DIR={json.dumps(str(dir_path))};
     html = html.replace('href="css/', 'href="/css/')
     html = html.replace('src="js/', 'src="/js/')
     handler._html(html.encode("utf-8"))
-
-
-def _infer_platform_from_replay(body: dict) -> str:
-    """从 replay 数据推断 platform，推断不出返回空字符串"""
-    platform = body.get("platform", "")
-    if platform:
-        return platform
-    events = body.get("events", [])
-    if events and isinstance(events, list):
-        for event in events:
-            if isinstance(event, dict):
-                p = event.get("_platform", "") or event.get("platform", "")
-                if p:
-                    return p
-    steps = body.get("steps", [])
-    if steps and isinstance(steps, list):
-        for step in steps:
-            if isinstance(step, dict):
-                p = step.get("_platform", "") or step.get("platform", "")
-                if p:
-                    return p
-    return ""
 
 
 def make_flow_create_handler(flow, flows_api, port):
@@ -504,7 +519,12 @@ def make_flow_create_handler(flow, flows_api, port):
             qs = parse_qs(urlparse(self.path).query)
             try:
                 if p == "/":
-                    self._html(editor_html.read_bytes())
+                    _html = editor_html.read_text(encoding="utf-8")
+                    _html = _html.replace(
+                        "</head>",
+                        f"<script>window.__SCRIPTS_DIR={json.dumps(str(SCRIPTS_DIR))};</script>\n</head>",
+                    )
+                    self._html(_html.encode("utf-8"))
                 elif p.startswith("/editor/"):
                     fname = qs.get("flow", [None])[0]
                     if fname:
@@ -561,9 +581,6 @@ def make_flow_create_handler(flow, flows_api, port):
                     self._json({"ok": True, "dir": export_dir})
                 elif self.path == "/api/flow/save":
                     flow_data = body.get("flow", body)
-                    # 旧录制产物可能缺 platform，从 replay URL 推断
-                    if not flow_data.get("platform"):
-                        flow_data["platform"] = _infer_platform_from_replay(body)
                     if flow_data.get("name"):
                         save_flow(flow_data)
                         _invalidate_flows_cache()
@@ -601,42 +618,11 @@ def make_flow_create_handler(flow, flows_api, port):
                         delete_group(gid)
                         _invalidate_flows_cache()
                     self._json({"ok": True})
-                elif self.path == "/api/editor/save":
-                    fname = body.get("_flow_name", body.get("name", ""))
-                    events = body.get("events", [])
-                    device = body.get("device", "")
-                    resolution = body.get("resolution")
-                    profiles = body.get("profiles")
-                    current_profile = body.get("currentProfile", "")
-                    if fname and _save_flow_events(fname, events, device=device, resolution=resolution,
-                                                    profiles=profiles, current_profile=current_profile):
-                        _invalidate_flows_cache()
-                        print(f"📝 Flow 事件已更新: {fname}")
-                        _print_save_tips(fname)
-                    self._json({"ok": True})
-                elif self.path == "/api/groups/create":
-                    from core.flow import create_group
-                    name = body.get("name", "").strip()
-                    if not name:
-                        self._json({"ok": False, "error": "名称不能为空"}, status=400)
-                    else:
-                        group = create_group(name)
-                        self._json({"ok": True, "group": group})
-                elif self.path == "/api/groups/rename":
-                    from core.flow import rename_group
-                    gid = body.get("id", "")
-                    new_name = body.get("name", "").strip()
-                    if not gid or not new_name:
-                        self._json({"ok": False, "error": "缺少 id 或 name"}, status=400)
-                    else:
-                        ok = rename_group(gid, new_name)
-                        _invalidate_flows_cache()
-                        self._json({"ok": ok})
-                elif self.path == "/api/groups/delete":
-                    from core.flow import delete_group
+                elif self.path == "/api/groups/pin":
+                    from core.flow import pin_group
                     gid = body.get("id", "")
                     if gid:
-                        delete_group(gid)
+                        pin_group(gid, bool(body.get("pinned", False)))
                         _invalidate_flows_cache()
                     self._json({"ok": True})
                 elif self.path == "/api/editor/save":
@@ -647,7 +633,8 @@ def make_flow_create_handler(flow, flows_api, port):
                     profiles = body.get("profiles")
                     current_profile = body.get("currentProfile", "")
                     if fname and _save_flow_events(fname, events, device=device, resolution=resolution,
-                                                    profiles=profiles, current_profile=current_profile):
+                                                    profiles=profiles, current_profile=current_profile,
+                                                    rotation=body.get("rotation", 0)):
                         _invalidate_flows_cache()
                         print(f"📝 Flow 事件已更新: {fname}")
                         _print_save_tips(fname)
@@ -661,11 +648,13 @@ def make_flow_create_handler(flow, flows_api, port):
                     resolution = body.get("resolution")
                     profiles = body.get("profiles")
                     current_profile = body.get("currentProfile", "")
+                    platform = body.get("platform", "")
                     if not new_name:
                         self._json({"ok": False, "error": "名称不能为空"}, 400)
                     else:
                         _save_flow_as_new(new_name, events, device=device, resolution=resolution,
-                                          profiles=profiles, current_profile=current_profile)
+                                          profiles=profiles, current_profile=current_profile,
+                                          platform=platform, rotation=body.get("rotation", 0))
                         _invalidate_flows_cache()
                         self._json({"ok": True, "name": new_name})
                 elif self.path == "/api/close":
@@ -799,9 +788,6 @@ def make_flow_edit_handler(flow, flows_api, port):
                     self._json({"ok": True, "dir": export_dir})
                 elif self.path == "/api/flow/save":
                     flow_data = body.get("flow", body)
-                    # 旧录制产物可能缺 platform，从 replay URL 推断
-                    if not flow_data.get("platform"):
-                        flow_data["platform"] = _infer_platform_from_replay(body)
                     if flow_data.get("name"):
                         save_flow(flow_data)
                         _invalidate_flows_cache()
@@ -839,6 +825,13 @@ def make_flow_edit_handler(flow, flows_api, port):
                         delete_group(gid)
                         _invalidate_flows_cache()
                     self._json({"ok": True})
+                elif self.path == "/api/groups/pin":
+                    from core.flow import pin_group
+                    gid = body.get("id", "")
+                    if gid:
+                        pin_group(gid, bool(body.get("pinned", False)))
+                        _invalidate_flows_cache()
+                    self._json({"ok": True})
                 elif self.path == "/api/editor/save":
                     fname = body.get("_flow_name", body.get("name", ""))
                     events = body.get("events", [])
@@ -847,7 +840,8 @@ def make_flow_edit_handler(flow, flows_api, port):
                     profiles = body.get("profiles")
                     current_profile = body.get("currentProfile", "")
                     if fname and _save_flow_events(fname, events, device=device, resolution=resolution,
-                                                    profiles=profiles, current_profile=current_profile):
+                                                    profiles=profiles, current_profile=current_profile,
+                                                    rotation=body.get("rotation", 0)):
                         _invalidate_flows_cache()
                         print(f"📝 Flow 事件已更新: {fname}")
                         _print_save_tips(fname)
@@ -861,11 +855,13 @@ def make_flow_edit_handler(flow, flows_api, port):
                     resolution = body.get("resolution")
                     profiles = body.get("profiles")
                     current_profile = body.get("currentProfile", "")
+                    platform = body.get("platform", "")
                     if not new_name:
                         self._json({"ok": False, "error": "名称不能为空"}, 400)
                     else:
                         _save_flow_as_new(new_name, events, device=device, resolution=resolution,
-                                          profiles=profiles, current_profile=current_profile)
+                                          profiles=profiles, current_profile=current_profile,
+                                          platform=platform, rotation=body.get("rotation", 0))
                         _invalidate_flows_cache()
                         self._json({"ok": True, "name": new_name})
                 elif self.path == "/api/close":

@@ -42,6 +42,7 @@ def _format_ndk_version_html(ndk_text: str) -> str:
 def generate_html_report(result: CheckResult, html_path: str) -> None:
     """生成 HTML 报告"""
     is_aar = bool(result.source_aar_paths)
+    is_aab = Path(result.file_path).suffix.lower() == '.aab'
     file_name = Path(result.file_path).name
 
     # 整体状态
@@ -280,7 +281,7 @@ def generate_html_report(result: CheckResult, html_path: str) -> None:
     <div class="subtitle">官方 zipalign 验证 + 官方 check_elf_alignment.sh ELF LOAD 段对齐检查</div>
     <div class="meta-grid">
       <div class="meta-item">
-        <div class="label">{'AAR 文件' if is_aar else 'APK 文件'}</div>
+        <div class="label">{'AAR 文件' if is_aar else ('AAB 文件' if is_aab else 'APK 文件')}</div>
         <div class="value" title="{html.escape(', '.join(result.source_aar_paths)) if is_aar else html.escape(result.file_path)}">{html.escape(', '.join(Path(p).name for p in result.source_aar_paths)) if is_aar else html.escape(file_name)}</div>
       </div>
       <div class="meta-item">
@@ -360,6 +361,18 @@ def generate_html_report(result: CheckResult, html_path: str) -> None:
     </div>
 '''
 
+    # zipalign 版本过低告警（旧版 zipalign 无法正确验证 16KB 对齐）
+    if result.zipalign.available and not result.zipalign.version_ok:
+        version_label = html.escape(result.zipalign.version) if result.zipalign.version else '未知'
+        html_content += f'''
+    <div style="margin: 12px 24px; padding: 12px 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; color: #b91c1c;">
+      <strong>⚠️ zipalign 版本过低（Build-Tools {version_label} &lt; 35.0.0-rc3）</strong><br>
+      旧版 zipalign 没有 <code>-P 16</code> 参数，无法正确验证 16KB 对齐。<br>
+      请把检查环境的 build-tools 升级到 <strong>35.0.0-rc3 及以上</strong>（<code>sdkmanager "build-tools;35.0.0"</code>）以正确验证。
+    </div>
+'''
+
+
     if result.zipalign.available:
         html_content += f'''    <div class="verify-stats">
       <div class="verify-stat-card">
@@ -422,9 +435,15 @@ def generate_html_report(result: CheckResult, html_path: str) -> None:
                             info = result.so_source_map[so_name]
                             note += f' ← {html.escape(info.get("module", ""))}'
                     elif entry.file_path in fixable_paths:
-                        fix_badge = '<span class="badge badge-pass" style="font-size:11px;">zipalign 可修复</span>'
+                        if is_aab:
+                            fix_badge = '<span class="badge badge-fail" style="font-size:11px;">需重新打包</span>'
+                        else:
+                            fix_badge = '<span class="badge badge-pass" style="font-size:11px;">zipalign 可修复</span>'
                     else:
-                        fix_badge = '<span class="badge" style="background:#f3f4f6;color:#374151;font-size:11px;">zipalign 可修复</span>'
+                        if is_aab:
+                            fix_badge = '<span class="badge badge-fail" style="font-size:11px;">需重新打包</span>'
+                        else:
+                            fix_badge = '<span class="badge" style="background:#f3f4f6;color:#374151;font-size:11px;">zipalign 可修复</span>'
                 else:
                     badge_class = "badge-warn"
                     badge_text = "⚠️ compressed"
@@ -579,16 +598,32 @@ def generate_html_report(result: CheckResult, html_path: str) -> None:
 android {{<br>
 &nbsp;&nbsp;&nbsp;&nbsp;packagingOptions {{<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;jniLibs {{<br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;useLegacyPackaging = false<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;useLegacyPackaging = false&nbsp;&nbsp;// AGP ≥ 8.5.1（未压缩 + 16K 对齐）<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;// useLegacyPackaging = true&nbsp;&nbsp;// AGP &lt; 8.5.1（压缩存储规避）<br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}}<br>
 &nbsp;&nbsp;&nbsp;&nbsp;}}<br>
 }}</code>
         </div>
         <p style="margin: 8px 0 0; color: #6b7280; font-size: 12px;">
-          📌 AGP 8.5.1+ 已默认设置此选项，低版本需手动配置。
+          📌 useLegacyPackaging 取值取决于 AGP 版本：AGP ≥ 8.5.1 用 <strong>false</strong>（未压缩 + 16K 对齐），AGP &lt; 8.5.1 用 <strong>true</strong>（压缩存储规避）。
         </p>
       </div>
     </div>
+  </div>
+'''
+
+    # AAB 模式：tab-zipalign 下方给出 AAB 专属解决方案（简短，详细根因见 tab-tips）
+    if is_aab and not zipalign_ok:
+        html_content += '''
+  <div class="tips" style="margin-top: 20px;">
+    <h2>💡 解决方案</h2>
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px 20px; font-size: 13px; color: #991b1b; line-height: 1.9;">
+      <strong>❌ AAB 转出的分发 APK 未通过 16KB ZIP 对齐</strong><br>
+      AAB 无法用 <code>zipalign</code> 直接修复（zipalign 只作用于 APK），必须重新 <code>bundleRelease</code>：<br>
+      1. <strong>升级 AGP ≥ 8.5.1</strong>（AAB config 写入 <code>PAGE_ALIGNMENT_16K</code>，根治）<br>
+      2. 或设 <code>useLegacyPackaging = true</code>（压缩存储规避，AGP &lt; 8.5.1 的临时方案）
+    </div>
+    <p style="margin: 8px 0 0; font-size: 12px; color: #6b7280;">详细根因分析见「💡 修复方案&参考资料」Tab。</p>
   </div>
 '''
 
@@ -598,7 +633,7 @@ android {{<br>
         fix and fix.attempted and fix.verify_result
         and fix.verify_result.zipalign.fail_count == 0
     )
-    has_zipalign_tips = not zipalign_ok or result.has_compressed_so
+    has_zipalign_tips = (not zipalign_ok or result.has_compressed_so) and not is_aab
     if has_zipalign_tips:
         html_content += '  <div class="tips" style="margin-top: 20px;">\n'
         html_content += '    <h2>💡 解决方案</h2>\n'
@@ -863,7 +898,28 @@ zipalign -c -P 16 -v 4 output_aligned.apk</code></pre>
   </div>
 '''
     else:
-        html_content += f'''
+        script_output = result.elf_script_output or ""
+        failure_markers = ("超时", "出错", "退出码", "ERROR", "Failed")
+        if any(m in script_output for m in failure_markers):
+            key_line = ""
+            for ln in script_output.splitlines():
+                if any(m in ln for m in failure_markers):
+                    key_line = ln.strip()
+                    break
+            if not key_line:
+                key_line = script_output.strip()
+            escaped_reason = html.escape(key_line)
+            html_content += f'''
+  <div class="official-verify">
+    <div class="verify-header">
+      <h2>🔬 ELF LOAD 段对齐检查</h2>
+      <span class="verify-status unavailable">⚠️ 检查失败</span>
+    </div>
+    <div class="verify-output"><span class="line-info">ELF 段检查失败：{escaped_reason}</span></div>
+  </div>
+'''
+        else:
+            html_content += f'''
   <div class="official-verify">
     <div class="verify-header">
       <h2>🔬 ELF LOAD 段对齐检查</h2>
@@ -973,9 +1029,46 @@ readelf -l libXxx.so | grep -A1 LOAD</code></pre>
     html_content += '  <div id="tab-tips" class="tab-pane">\n'
     html_content += '  <div class="tips">\n'
 
+    # AAB 模式：dump config 前置判断（根因分析 + 修复，归入「解决方案」Tab）
+    if is_aab and result.bundletool_available:
+        if result.page_alignment == '16K':
+            align_label = '<span style="color:#16a34a; font-weight:600;">PAGE_ALIGNMENT_16K</span>（请求 16K 对齐）'
+        elif result.page_alignment == '4K':
+            align_label = '<span style="color:#dc2626; font-weight:600;">PAGE_ALIGNMENT_4K</span>（仅 4K 对齐，不满足 16K）'
+        else:
+            align_label = '<span style="color:#dc2626; font-weight:600;">缺失</span>（bundletool 默认 4K 对齐，不满足 16K）'
+        if result.uncompress_native_libraries is True:
+            uncompress_label = '<span style="color:#d97706; font-weight:600;">enabled=true</span>（未压缩存储，需 16K ZIP 对齐）'
+        elif result.uncompress_native_libraries is False:
+            uncompress_label = '<span style="color:#16a34a; font-weight:600;">enabled=false</span>（压缩存储，不涉及 ZIP 对齐）'
+        else:
+            uncompress_label = '未知'
+        bt_ver = html.escape(result.bundletool_version) if result.bundletool_version else '未知'
+        # 前置判断命中：未压缩 + 无 PAGE_ALIGNMENT_16K → AGP < 8.5.1
+        hit = bool(result.uncompress_native_libraries and result.page_alignment != '16K')
+        verdict_html = ''
+        if hit:
+            verdict_html = '''
+    <div style="margin: 12px 0 0; padding: 12px 16px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; font-size: 13px; color: #b91c1c; line-height: 1.9;">
+      <strong>⚠️ 前置判断命中：未压缩原生库但 AAB 未请求 16K 对齐</strong><br>
+      <strong>根因：</strong>AGP &lt; 8.5.1 打包 AAB 时未写入 <code>PAGE_ALIGNMENT_16K</code> 标记<br>
+      <strong>修复：</strong>升级 AGP ≥ 8.5.1，或设 <code>useLegacyPackaging = true</code>（压缩存储规避）
+    </div>'''
+        html_content += f'''
+    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+      <h2 style="margin: 0 0 12px; font-size: 18px;">🔧 AAB 打包配置判读（bundletool dump config）</h2>
+      <div style="padding: 12px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; color: #334155; line-height: 1.9;">
+        <div>uncompressNativeLibraries：{uncompress_label}</div>
+        <div>ZIP 对齐标记：{align_label}</div>
+        <div>AAB 内置 bundletool 版本：{bt_ver}（AGP 内置，仅参考）</div>
+      </div>{verdict_html}
+    </div>
+
+'''
+
     if zipalign_ok and result.elf_failed == 0 and not result.has_compressed_so:
-        html_content += '''
-    <p style="color: #16a34a; font-size: 14px;">🎉 当前 APK 已通过所有 16KB 对齐检查，无需额外修复。以下为通用参考信息。</p>
+        html_content += f'''
+    <p style="color: #16a34a; font-size: 14px;">🎉 当前 {'AAB' if is_aab else 'APK'} 已通过所有 16KB 对齐检查，无需额外修复。以下为通用参考信息。</p>
 '''
 
     # AGP 版本 / useLegacyPackaging / bundletool 兼容性（放在第三个 tab 中）
@@ -1001,7 +1094,7 @@ readelf -l libXxx.so | grep -A1 LOAD</code></pre>
       <div style="display:flex; align-items:flex-start; gap:10px;">
         <span style="font-size:20px; flex-shrink:0;">✅</span>
         <div>
-          <strong style="font-size:14px; color:#166534;">AGP {html.escape(result.agp_version)} ≥ 8.5.1，bundletool zipalign 缺陷已官方修复</strong>
+          <strong style="font-size:14px; color:#166534;">AGP {html.escape(result.agp_version)} ≥ 8.5.1，已写入 PAGE_ALIGNMENT_16K（官方根治方案）</strong>
           <p style="margin:6px 0 0; font-size:13px; color:#166534; line-height:1.6;">
             {legacy_note}
           </p>
@@ -1018,7 +1111,7 @@ readelf -l libXxx.so | grep -A1 LOAD</code></pre>
       <div style="display:flex; align-items:flex-start; gap:10px;">
         <span style="font-size:20px; flex-shrink:0;">✅</span>
         <div>
-          <strong style="font-size:14px; color:#166534;">AGP {html.escape(result.agp_version)}（8.3~8.5 区间），已设置 useLegacyPackaging = true 规避 bundletool 缺陷</strong>
+          <strong style="font-size:14px; color:#166534;">AGP {html.escape(result.agp_version)}（8.3~8.5 区间），已设置 useLegacyPackaging = true（压缩存储规避）</strong>
           <p style="margin:6px 0 0; font-size:13px; color:#92400e; line-height:1.6;">
             <strong>提示：</strong>升级 AGP ≥ 8.5.1 后可改为 false（官方根治方案）
           </p>
@@ -1036,7 +1129,7 @@ readelf -l libXxx.so | grep -A1 LOAD</code></pre>
         <div>
           <strong style="font-size:14px; color:#991b1b;">已知坑：AGP {html.escape(result.agp_version)}（8.3~8.5 区间），且未显式设置 useLegacyPackaging = true</strong>
           <p style="margin:6px 0 0; font-size:13px; color:#991b1b; line-height:1.6;">
-            本地打包对齐正常，但 bundletool 从 <code>.aab</code> 构建分发 APK 时存在 zipalign 缺陷（已实测命中）。
+            本地打包对齐正常，但 AGP < 8.5.1 未写入 PAGE_ALIGNMENT_16K，bundletool 只做 4K 对齐（已实测命中）。
           </p>
           <p style="margin:6px 0 0; font-size:13px; color:#92400e; line-height:1.6;">
             <strong>必须项：</strong>在 build.gradle 中设置 <code>useLegacyPackaging = true</code>（不是可选项）<br>
@@ -1055,7 +1148,7 @@ readelf -l libXxx.so | grep -A1 LOAD</code></pre>
       <div style="display:flex; align-items:flex-start; gap:10px;">
         <span style="font-size:20px; flex-shrink:0;">✅</span>
         <div>
-          <strong style="font-size:14px; color:#92400e;">AGP {html.escape(result.agp_version)}（< 8.3），已设置 useLegacyPackaging = true 规避 bundletool 缺陷</strong>
+          <strong style="font-size:14px; color:#92400e;">AGP {html.escape(result.agp_version)}（< 8.3），已设置 useLegacyPackaging = true（压缩存储规避）</strong>
           <p style="margin:6px 0 0; font-size:13px; color:#92400e; line-height:1.6;">
             <strong>提示：</strong>还需确认 gradle.properties 中有 <code>android.bundle.enableUncompressedNativeLibs=false</code><br>
             <strong>根治方案：</strong>升级 AGP ≥ 8.5.1
@@ -1072,9 +1165,9 @@ readelf -l libXxx.so | grep -A1 LOAD</code></pre>
       <div style="display:flex; align-items:flex-start; gap:10px;">
         <span style="font-size:20px; flex-shrink:0;">⚠️</span>
         <div>
-          <strong style="font-size:14px; color:#991b1b;">已知坑：AGP {html.escape(result.agp_version)}（< 8.3），存在 bundletool zipalign 缺陷</strong>
+          <strong style="font-size:14px; color:#991b1b;">已知坑：AGP {html.escape(result.agp_version)}（< 8.3），未写入 PAGE_ALIGNMENT_16K</strong>
           <p style="margin:6px 0 0; font-size:13px; color:#991b1b; line-height:1.6;">
-            bundletool 从 <code>.aab</code> 构建的分发 APK 可能出现 zipalign 未按 16K 对齐（本地 assemble APK 测试通过 ≠ 发布产物对齐）。
+            bundletool 从 <code>.aab</code> 构建的分发 APK 只做 4K 对齐，不满足 16K（本地 assemble APK 测试通过 ≠ 发布产物对齐）。
           </p>
           <p style="margin:6px 0 0; font-size:13px; color:#92400e; line-height:1.6;">
             <strong>必须项 1：</strong>在 build.gradle 中设置 <code>useLegacyPackaging = true</code><br>
@@ -1104,25 +1197,43 @@ readelf -l libXxx.so | grep -A1 LOAD</code></pre>
     has_any_issue = not zipalign_ok or result.elf_failed > 0 or result.has_compressed_so
     if has_any_issue:
         html_content += '    <h2 style="margin-bottom: 16px;">🔧 修复方案总览</h2>\n'
-        html_content += '    <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">以下汇总了当前 APK 所有 16KB 对齐问题的修复方案，详细检查结果请查看前两个 Tab。</p>\n'
+        html_content += f'    <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280;">以下汇总了当前 {"AAB" if is_aab else "APK"} 所有 16KB 对齐问题的修复方案，详细检查结果请查看前两个 Tab。</p>\n'
 
         if not zipalign_ok:
-            fix_ref = result.fix_result
-            fix_all_pass = (
-                fix_ref and fix_ref.attempted and fix_ref.verify_result
-                and fix_ref.verify_result.zipalign.fail_count == 0
-            )
-            html_content += '''
+            if is_aab:
+                html_content += '''
+    <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;">
+      <h3 style="margin: 0 0 12px; font-size: 15px; color: #991b1b;">📦 方案一：修复 AAB 的 16KB ZIP 对齐（需重新打包）</h3>
+      <p style="margin: 0 0 8px; font-size: 13px; color: #991b1b;">AAB 无法用 <code>zipalign</code> 直接修复（zipalign 只作用于 APK），必须重新 <code>bundleRelease</code>：</p>
+      <table style="width:100%; border-collapse:collapse; font-size:13px;">
+        <tr style="background: rgba(255,255,255,0.6);">
+          <td style="padding: 8px 12px; border: 1px solid #fecaca; font-weight: bold; width: 160px;">升级 AGP ≥ 8.5.1<br><span style="font-weight:normal;color:#6b7280;">（推荐）</span></td>
+          <td style="padding: 8px 12px; border: 1px solid #fecaca;">AAB config 写入 <code>PAGE_ALIGNMENT_16K</code>，bundletool 生成 16K 对齐的分发 APK</td>
+        </tr>
+        <tr>
+          <td style="padding: 8px 12px; border: 1px solid #fecaca; font-weight: bold;">useLegacyPackaging = true</td>
+          <td style="padding: 8px 12px; border: 1px solid #fecaca;">压缩存储规避（AGP &lt; 8.5.1 的临时方案，代价：安装后解压）</td>
+        </tr>
+      </table>
+    </div>
+'''
+            else:
+                fix_ref = result.fix_result
+                fix_all_pass = (
+                    fix_ref and fix_ref.attempted and fix_ref.verify_result
+                    and fix_ref.verify_result.zipalign.fail_count == 0
+                )
+                html_content += '''
     <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px;">
       <h3 style="margin: 0 0 12px; font-size: 15px; color: #15803d;">📦 方案一：修复 ZIP 偏移对齐（zipalign）</h3>
 '''
-            if fix_all_pass:
-                html_content += f'''
+                if fix_all_pass:
+                    html_content += f'''
       <p style="margin: 0 0 8px; font-size: 13px; color: #166534;">
         ✅ <strong>已验证可修复</strong> — 使用 <code>zipalign -P 16</code> 重新对齐后 zipalign 验证全部通过。
       </p>
 '''
-            html_content += '''
+                html_content += '''
       <p style="margin: 0 0 8px; font-size: 13px; color: #166534;">选择以下任一方式：</p>
       <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom: 8px;">
         <tr style="background: rgba(255,255,255,0.6);">

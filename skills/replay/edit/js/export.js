@@ -56,6 +56,11 @@ function exportAsScript() {
       case 'tap':
         script += `adb shell input tap ${event.x} ${event.y}\n`;
         break;
+      case 'multitap':
+        script += `for i in $(seq 1 ${event.count || 2}); do\n`;
+        script += `  adb shell input tap ${event.x} ${event.y}\n`;
+        script += `done\n`;
+        break;
       case 'swipe':
 script += `adb shell input swipe ${event.x1} ${event.y1} ${event.x2} ${event.y2} ${event.duration_ms || 300}\n`;
         break;
@@ -73,6 +78,8 @@ script += `adb shell input swipe ${event.x1} ${event.y1} ${event.x2} ${event.y2}
           script += `if adb shell dumpsys deviceidle | grep -q 'mScreenOn=true'; then\n`;
           script += `  adb shell input keyevent 26\n`;
           script += `fi\n`;
+        } else if (event.action === 'launch') {
+          script += `adb shell monkey -p ${event.package || ''} -c android.intent.category.LAUNCHER 1\n`;
         } else {
           script += `adb shell ${event.action} ${event.package || ''}\n`;
         }
@@ -146,6 +153,8 @@ function getEventDescription(event) {
   switch (event.type) {
     case 'tap':
       return `点击坐标 (${event.x}, ${event.y})`;
+    case 'multitap':
+      return `连续点击坐标 (${event.x}, ${event.y}) ${event.count || 2} 次`;
     case 'swipe':
       return `从 (${event.x1}, ${event.y1}) 滑动到 (${event.x2}, ${event.y2})`;
     case 'keyevent':
@@ -153,7 +162,7 @@ function getEventDescription(event) {
     case 'text':
       return `文本输入: "${event.content}"`;
     case 'adb':
-      return event.action === 'wifi-connect' ? `连接 WiFi: ${event.ssid || ''}` : event.action === 'open-schema' ? `打开 Schema: ${event.content || ''}` : event.action === 'lock-screen' ? '🔒 锁屏（检测屏幕状态后锁定）' : `ADB 命令: ${event.action} ${event.package || ''}`;
+      return event.action === 'wifi-connect' ? `连接 WiFi: ${event.ssid || ''}` : event.action === 'open-schema' ? `打开 Schema: ${event.content || ''}` : event.action === 'lock-screen' ? '🔒 锁屏（检测屏幕状态后锁定）' : event.action === 'launch' ? `拉起应用: ${event.package || ''}` : event.action === 'uninstall' ? `卸载应用: ${event.package || ''}` : event.action === 'install' ? `安装 APK: ${event.content || ''}` : `ADB 命令: ${event.action} ${event.package || ''}`;
     case 'tips':
       return `提示: "${event.content || ''}"`;
     default:
@@ -165,6 +174,8 @@ function getEventCommand(event) {
   switch (event.type) {
     case 'tap':
       return `adb shell input tap ${event.x} ${event.y}`;
+    case 'multitap':
+      return `adb shell input tap ${event.x} ${event.y} ×${event.count || 2}`;
     case 'swipe':
 return `adb shell input swipe ${event.x1} ${event.y1} ${event.x2} ${event.y2} ${event.duration_ms || 300}`;
     case 'keyevent':
@@ -176,10 +187,19 @@ return `adb shell input swipe ${event.x1} ${event.y1} ${event.x2} ${event.y2} ${
         return `adb shell cmd wifi connect-network "${event.ssid || ''}" ${event.security || 'wpa2'} "${event.password || ''}"`;
       }
       if (event.action === 'open-schema') {
-        return `adb shell am start -a android.intent.action.VIEW -d "${event.content || ''}"`;
+        return `adb shell am start -a android.intent.action.VIEW -d "${event.content || ''}" -f 0x14000000`;
       }
       if (event.action === 'lock-screen') {
         return `adb shell dumpsys deviceidle | grep -q 'mScreenOn=true' && adb shell input keyevent 26`;
+      }
+      if (event.action === 'launch') {
+        return `adb shell monkey -p ${event.package || ''} -c android.intent.category.LAUNCHER 1`;
+      }
+      if (event.action === 'uninstall') {
+        return `adb uninstall ${event.package || ''}`;
+      }
+      if (event.action === 'install') {
+        return `adb install -r ${event.content || ''}`;
       }
       return `adb shell ${event.action} ${event.package || ''}`;
     case 'tips':

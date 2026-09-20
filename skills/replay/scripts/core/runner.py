@@ -67,6 +67,7 @@ def run_flow(
     step_executor: StepExecutor,
     *,
     speed: float = 1.0,
+    max_delay: Optional[float] = None,
     step_indices: list | None = None,
     fail_fast: bool = False,
     rerun: bool = False,
@@ -102,6 +103,7 @@ def run_flow(
         name=flow.get("name", flow_name),
         flow_data=flow,
         speed=speed,
+        max_delay=max_delay,
         step_indices=step_indices,
         fail_fast=fail_fast,
         rerun=rerun,
@@ -124,6 +126,7 @@ def run_steps(
     name: str = "",
     flow_data: Optional[dict] = None,
     speed: float = 1.0,
+    max_delay: Optional[float] = None,
     step_indices: list | None = None,
     fail_fast: bool = False,
     rerun: bool = False,
@@ -199,10 +202,20 @@ def run_steps(
     _log_file = open(run_dir / "run.log", "a", encoding="utf-8")
 
     def _log(msg: str) -> None:
-        """同时输出到 stdout 和 run.log"""
-        ts = datetime.now().strftime("%H:%M:%S")
-        line = f"[{ts}] {msg}"
-        print(msg)
+        """同时输出到 stdout 和 run.log（毫秒时间戳）。
+
+        格式契约：时间戳统一为 `[HH:MM:SS.mmm]`。此格式被下游解析器依赖——
+        procedures/mna/hg-replay-verify/scripts/timeline.py 的 STEP_RE 按此格式
+        匹配 run.log 步骤标题行（`[ts] 📌 N/总数: 类型 [名称]`）。
+        ⚠️ 改时间戳格式前必须先 grep 全仓 run.log 解析器并同步，否则时间轴解析会静默失效。
+        """
+        ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        if msg.startswith("\n"):
+            # 消息自带前置空行时，时间戳放到空行之后，避免独占一行
+            line = f"\n[{ts}] {msg.lstrip(chr(10))}"
+        else:
+            line = f"[{ts}] {msg}"
+        print(line)
         _log_file.write(line + "\n")
         _log_file.flush()
 
@@ -245,6 +258,8 @@ def run_steps(
 
     # ── 通知：开始 ──
     _skip_notify = os.environ.get("REPLAY_MIXED_MODE") == "1" or os.environ.get("REPLAY_NO_NOTIFY") == "1"
+    if _skip_notify:
+        _log("[skip notify] 开始通知已抑制（REPLAY_MIXED_MODE/REPLAY_NO_NOTIFY）")
     if notify_hook and not _skip_notify:
         try:
             notify_hook(
@@ -261,6 +276,8 @@ def run_steps(
     # mixed 平台切换状态
     _current_platform: str = ""
     _active_executor = step_executor
+    # mixed 不可用平台集合：setup 失败或探测未通过的平台，其 step 全部 skipped
+    _skipped_platforms: set[str] = set()
 
     def _gen_summary() -> dict:
         finished_at = datetime.now().isoformat(timespec="seconds")
@@ -273,6 +290,8 @@ def run_steps(
             "total_steps": total_steps,
             "completed_steps": sum(1 for r in step_results if r.get("status") == "success"),
             "failed_steps": sum(1 for r in step_results if r.get("status") == "failed"),
+            "skipped_steps": sum(1 for r in step_results if r.get("status") == "skipped"),
+            "skipped_platforms": sorted(_skipped_platforms),
             "steps": step_results,
         }
 
@@ -346,6 +365,14 @@ def run_steps(
 
             # mixed flow 平台切换：当 _platform 变化时切换 executor 和 setup/teardown
             step_platform = step.get("_platform", "")
+            # 该平台此前已被标记不可用（探测未过 / setup 失败）→ 跳过本 step（不计失败）
+            if step_platform and step_platform in _skipped_platforms:
+                _log(f"  ⏭ 平台 {step_platform} 不可用，跳过：{actual_num}/{len(steps)}{fl}")
+                step_results.append({
+                    "name": step.get("action", "?"), "type": "event", "index": actual_num,
+                    "status": "skipped", "flow_name": fn, "_platform": step_platform,
+                })
+                continue
             if platform_hooks and step_platform and step_platform != _current_platform:
                 # teardown 上一个平台
                 if _current_platform and _current_platform in platform_hooks:
@@ -364,14 +391,14 @@ def run_steps(
                         try:
                             su(ctx)
                         except Exception as e:
-                            _log(f"  ❌ setup({step_platform}) 失败: {e}")
+                            # 平台 setup 失败 → 标记该平台不可用，其后续 step 全部 skipped（不计失败）
+                            _log(f"  ⏭ setup({step_platform}) 失败，跳过该平台所有步骤: {e}")
+                            _skipped_platforms.add(step_platform)
+                            _current_platform = step_platform
                             step_results.append({
                                 "name": "setup", "type": "event", "index": actual_num,
-                                "status": "failed", "flow_name": fn,
+                                "status": "skipped", "flow_name": fn, "_platform": step_platform,
                             })
-                            has_failure = True
-                            if fail_fast:
-                                break
                             continue
                 else:
                     # 没有注册该平台的 hooks，回退到默认 executor
@@ -396,6 +423,18 @@ def run_steps(
             step_copy["_step_dir"] = str(step_dir)
             step_copy["_screenshot_dir"] = str(screenshot_dir)
             step_copy["_actual_num"] = actual_num
+
+            # ── max_delay 上限截断：生效值 = min(原 delay, max_delay) ──
+            if max_delay and max_delay > 0:
+                _cap_ms = max_delay * 1000
+                _clipped = [
+                    _k for _k in ("delay_before_ms", "delay_after_ms")
+                    if step_copy.get(_k) and step_copy[_k] > _cap_ms
+                ]
+                for _k in _clipped:
+                    step_copy[_k] = _cap_ms
+                if _clipped:
+                    _log(f"  ⏳ 等待超上限，已截断到 {max_delay:.1f}s（{', '.join(_clipped)}）")
 
             step_status = "success"
             step_meta: dict = {}
@@ -484,20 +523,64 @@ def run_steps(
         success_count = summary.get("completed_steps", 0)
         problem_count = fail_count + interrupted_count
         has_problem = problem_count > 0 or success_count < total_steps
-        _log(f"\n{'='*50}")
+        # ── 结果打印（标题仿 notify：状态 - 平台 · 执行时间 · 执行机器 · 运行设备）──
         if interrupted_count:
-            _log(f"⏹️  中断: {success_count}/{total_steps} 已完成，{interrupted_count} 中断")
+            status_label = "中断"
+            icon = "⏹️"
+            result_line = f"{success_count}/{total_steps} 已完成，{interrupted_count} 中断"
         elif fail_count:
-            _log(f"⚠️  完成: {success_count}/{total_steps} 成功，{fail_count} 失败")
+            status_label = "失败"
+            icon = "⚠️"
+            result_line = f"{success_count}/{total_steps} 成功，{fail_count} 失败"
         else:
-            _log(f"✅ 完成: {success_count}/{total_steps} 成功")
+            status_label = "结束"
+            icon = "✅"
+            result_line = f"{success_count}/{total_steps} 成功"
+
+        from core.report import _get_local_hostname, _format_started_at
+        ts = _format_started_at({"started_at": started_at})
+        host = _get_local_hostname()
+        plat = device.upper() or "REPLAY"
+        flow_name = flow.get("name", "") or name
+        title = f"{icon}  【{status_label} - {plat}】{flow_name}    执行机器：{host}"
+        if ctx.device and ctx.device != device:
+            title += f"    运行设备：{ctx.device}"
+
+        _flow_id = flow.get("id", "") or flow.get("name", "") or name
+        _fid = _flow_id[:4] if len(_flow_id) > 4 else _flow_id
+
+        # 任务耗时（开始 → 当前时间）
+        duration_line = ""
+        try:
+            _start_dt = datetime.fromisoformat(started_at)
+            _secs = int((datetime.now() - _start_dt).total_seconds())
+            _m, _s = divmod(max(0, _secs), 60)
+            _duration = f"{_m}分{_s}秒" if _m > 0 else f"{_s}秒"
+            _end_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            duration_line = f"   任务耗时: {_duration}（{ts} - {_end_ts}）"
+        except (ValueError, TypeError):
+            pass
+
+        _log(f"\n{'='*50}")
+        _log(title)
+        if _fid:
+            _log(f"   执行命令：zk replay run {_fid}")
+        _log(f"   任务情况: {result_line}")
+        if duration_line:
+            _log(duration_line)
         if report_file:
             _log(f"   报告: {report_file}")
         _log(f"   日志: {run_dir / 'run.log'}")
+        snapshot_file = run_dir / "critical_after_snapshot.png"
+        if snapshot_file.exists():
+            _log(f"   快照: {snapshot_file} ({snapshot_file.stat().st_size / 1024 / 1024:.1f}MB)")
+        _log(f"   目录: {run_dir}/")
         _log(f"{'='*50}")
 
         # ── 通知：结束 ──
         _skip_notify = os.environ.get("REPLAY_MIXED_MODE") == "1" or os.environ.get("REPLAY_NO_NOTIFY") == "1"
+        if _skip_notify:
+            _log("[skip notify] 结束通知已抑制（REPLAY_MIXED_MODE/REPLAY_NO_NOTIFY）")
         if notify_hook and not _skip_notify:
             try:
                 if interrupted_count:

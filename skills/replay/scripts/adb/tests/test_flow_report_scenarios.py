@@ -32,30 +32,29 @@ def test_scenario_a_atomic_flow_no_compare_panel(tmp_path):
     """场景 A（原子 Flow）：全部 entries=1，全对比面板数量为 0（AC1）"""
     html = _render("A", tmp_path)
     assert html.count('class="compare-panel" id="compare-') == 0
-    # 关键事件面板：1 个关键步骤（swipe） → before/after 2 个 block
-    assert '<span class="badge">2 组</span>' in html
+    # 关键事件面板：1 个关键步骤（swipe） → before/after 合并为 1 个 block
+    assert '<span class="badge">1 组</span>' in html
 
 
 def test_scenario_b_non_atomic_no_duplicate_no_compare_panel(tmp_path):
     """场景 B（非原子 Flow，子 Flow 无重复引用）：全对比面板数量为 0（AC2）"""
     html = _render("B", tmp_path)
     assert html.count('class="compare-panel" id="compare-') == 0
-    # 关键事件面板：2 个关键步骤 → 4 个 block
-    assert '<span class="badge">4 组</span>' in html
+    # 关键事件面板：2 个关键步骤 → before/after 合并为 2 个 block
+    assert '<span class="badge">2 组</span>' in html
 
 
 def test_scenario_c_duplicate_ref_produces_compare_and_critical_panels(tmp_path):
-    """场景 C（非原子 Flow，子 Flow 重复引用）：全对比 2 组，关键事件 4 组（AC3）"""
+    """场景 C（非原子 Flow，子 Flow 重复引用）：全对比 1 组（启动App 按 flow 合并），关键事件 2 组（AC3）"""
     html = _render("C", tmp_path)
-    assert html.count('class="compare-panel" id="compare-') == 2
-    assert '<span class="badge">4 组</span>' in html
+    assert html.count('class="compare-panel" id="compare-') == 1
+    assert '<span class="badge">2 组</span>' in html
 
-    # 关键事件面板中，"启动App|2" 组 entries=2 → 双列（含 #执行序号 标签）
-    # "检查首页|1" 组 entries=1 → 单列（无 #执行序号 标签）
+    # 关键事件面板中，"启动App|2" 组 entries=2（重复引用 2 次）→ before/after 合并，多次运行时 phase 标签附带执行序号
     critical_section = html.split('id="flat-all"')[1]
-    # 双列 block：cv-step 标签应出现（#02/#05）
-    assert re.search(r'<div class="cv-step">#02</div>', critical_section)
-    assert re.search(r'<div class="cv-step">#05</div>', critical_section)
+    # 多次运行的执行序号：phase 标签应含 #02/#05
+    assert re.search(r'#02 before</div>', critical_section)
+    assert re.search(r'#05 before</div>', critical_section)
     # block 排序：#02（启动App）应先于 #03（检查首页）出现
     idx_02 = critical_section.find("#02")
     idx_03 = critical_section.find("#03")

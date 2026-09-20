@@ -1,7 +1,7 @@
 ---
 
 
-version: 1
+version: 2
 category: aaf
 name: aaf-version-reader
 description: 读取 AAF 框架最新配置和版本信息。从 $AAF_HOME/AndroidAppFactory 提取 SDK 配置、版本号等结构化数据。当用户说"提取 AAF 配置"、"提取AAF版本号"时使用此 skill

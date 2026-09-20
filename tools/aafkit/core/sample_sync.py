@@ -117,10 +117,10 @@ def _sync_to_template_android(src: Path, dst: Path) -> list[str]:
     # 7. Application/build.gradle — 同步 AAF 依赖版本
     app_build = dst / "Application/build.gradle"
     if app_build.exists():
-        content = app_build.read_text()
+        content = app_build.read_text(encoding="utf-8")
         new_content = _sync_aaf_deps_in_content(content, aaf_config)
         if new_content != content:
-            app_build.write_text(new_content)
+            app_build.write_text(new_content, encoding="utf-8")
             changes.append("✅ Application/build.gradle: 同步 AAF 依赖版本")
 
     # 8. 验证 lib-router-compiler Maven 可用性
@@ -177,10 +177,10 @@ def _sync_to_template_empty(src: Path, dst: Path) -> list[str]:
     # 4. App/src/main/AndroidManifest.xml — 检查 exported
     manifest = dst / "App/src/main/AndroidManifest.xml"
     if manifest.exists():
-        content = manifest.read_text()
+        content = manifest.read_text(encoding="utf-8")
         new_content = _ensure_exported(content)
         if new_content != content:
-            manifest.write_text(new_content)
+            manifest.write_text(new_content, encoding="utf-8")
             changes.append('✅ App/src/main/AndroidManifest.xml: 添加 exported="true"')
 
     # 5. libs/ 目录 — 检查存在性
@@ -208,7 +208,7 @@ def _direct_copy_file(src: Path, dst: Path, rel_path: str) -> list[str]:
     dst_file = dst / rel_path
     if not src_file.exists():
         return [f"⚠️ 源文件不存在: {rel_path}"]
-    if dst_file.exists() and src_file.read_text() == dst_file.read_text():
+    if dst_file.exists() and src_file.read_text(encoding="utf-8") == dst_file.read_text(encoding="utf-8"):
         return []  # 内容相同，跳过
     dst_file.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src_file, dst_file)
@@ -228,8 +228,8 @@ def _sync_root_build_gradle(src: Path, dst: Path, aaf_config) -> list[str]:
     if not src_build.exists() or not dst_build.exists():
         return changes
 
-    src_content = src_build.read_text()
-    dst_content = dst_build.read_text()
+    src_content = src_build.read_text(encoding="utf-8")
+    dst_content = dst_build.read_text(encoding="utf-8")
     new_dst_content = dst_content
 
     # 同步 Kotlin 版本（兼容 ext.kotlin_version 和 kotlin_version 两种写法）
@@ -274,7 +274,7 @@ def _sync_root_build_gradle(src: Path, dst: Path, aaf_config) -> list[str]:
         )
 
     if new_dst_content != dst_content:
-        dst_build.write_text(new_dst_content)
+        dst_build.write_text(new_dst_content, encoding="utf-8")
         changes.append("✅ build.gradle: 同步 Kotlin 和 Gradle 插件版本")
 
     return changes
@@ -301,8 +301,8 @@ def _sync_apptest_build_gradle_for_android(src: Path, dst: Path, aaf_config) -> 
     if not src_file.exists() or not dst_file.exists():
         return changes
 
-    src_content = src_file.read_text()
-    dst_content = dst_file.read_text()
+    src_content = src_file.read_text(encoding="utf-8")
+    dst_content = dst_file.read_text(encoding="utf-8")
 
     # 提取 Template-AAF 的 android {} 块
     src_android_block = _extract_android_block(src_content)
@@ -336,7 +336,7 @@ def _sync_apptest_build_gradle_for_android(src: Path, dst: Path, aaf_config) -> 
     new_content = new_content.replace("common-wrapper", "common-debug")
 
     if new_content != dst_content:
-        dst_file.write_text(new_content)
+        dst_file.write_text(new_content, encoding="utf-8")
         changes.append("✅ APPTest/build.gradle: 同步 android 配置 + 保留依赖配置")
 
     return changes
@@ -412,8 +412,8 @@ def _sync_config_gradle_for_empty(src: Path, dst: Path, aaf_config) -> list[str]
     if not config_src.exists() or not config_dst.exists():
         return changes
 
-    src_content = config_src.read_text()
-    dst_content = config_dst.read_text()
+    src_content = config_src.read_text(encoding="utf-8")
+    dst_content = config_dst.read_text(encoding="utf-8")
 
     new_dst_content = src_content
 
@@ -438,7 +438,7 @@ def _sync_config_gradle_for_empty(src: Path, dst: Path, aaf_config) -> list[str]
             new_dst_content = _replace_value(new_dst_content, "appMinSdkVersion", aaf_config.app_min_sdk_version)
 
     if new_dst_content != dst_content:
-        config_dst.write_text(new_dst_content)
+        config_dst.write_text(new_dst_content, encoding="utf-8")
         changes.append("✅ config.gradle: 同步 SDK 配置（使用 appMinSdkVersion）")
 
     return changes
@@ -456,7 +456,7 @@ def _sync_app_build_gradle_for_empty(dst: Path, aaf_config) -> list[str]:
     if not app_build.exists():
         return changes
 
-    content = app_build.read_text()
+    content = app_build.read_text(encoding="utf-8")
     new_content = _sync_aaf_deps_in_content(content, aaf_config)
 
     # 确保独有依赖存在
@@ -482,7 +482,7 @@ def _sync_app_build_gradle_for_empty(dst: Path, aaf_config) -> list[str]:
             changes.append(f"✅ App/build.gradle: 添加缺失依赖 {artifact_id}")
 
     if new_content != content:
-        app_build.write_text(new_content)
+        app_build.write_text(new_content, encoding="utf-8")
         if "✅ App/build.gradle: 添加缺失依赖" not in " ".join(changes):
             changes.append("✅ App/build.gradle: 同步 AAF 依赖版本")
 

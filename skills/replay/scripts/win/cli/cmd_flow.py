@@ -52,20 +52,19 @@ def cmd_flow_run(args) -> int:
             return 1
 
     speed = getattr(args, "speed", 1.0)
+    max_delay = getattr(args, "max_delay", None)
     fail_fast = getattr(args, "fail_fast", False)
     rerun = getattr(args, "rerun", False)
 
-    run_dir, summary, report = run_flow_by_name(
+    _, summary, _ = run_flow_by_name(
         args.id,
         step_indices=step_indices,
         rerun=rerun,
         fail_fast=fail_fast,
         speed=speed,
+        max_delay=max_delay,
     )
 
-    fid = (flow.get("id", "") or "")[:4]
-    from core.cli import tips_after_flow_run
-    tips_after_flow_run("win", fid, script_path="", report_path=str(report) if report else "")
     return 0 if summary.get("failed_steps", 0) == 0 else 1
 
 
@@ -81,7 +80,18 @@ def cmd_flow_report(args) -> int:
         return 1
 
     fid = flow.get("id", "")
-    runs = sorted([d for d in FLOW_RUNS_DIR.iterdir() if d.is_dir() and fid in d.name], reverse=True) if FLOW_RUNS_DIR.exists() else []
+    # 运行目录名不含 flow_id，需读各目录 summary.json 的 flow_id 精确匹配
+    runs = []
+    if FLOW_RUNS_DIR.exists():
+        for d in sorted(FLOW_RUNS_DIR.iterdir(), reverse=True):
+            sf = d / "summary.json"
+            if not d.is_dir() or not sf.exists():
+                continue
+            try:
+                if json.loads(sf.read_text(encoding="utf-8")).get("flow_id") == fid:
+                    runs.append(d)
+            except (json.JSONDecodeError, OSError):
+                continue
     if not runs:
         from core.cli import log_error
         log_error(f"Flow「{flow['name']}」没有运行记录")
@@ -94,11 +104,12 @@ def cmd_flow_report(args) -> int:
         return 1
     summary = json.loads(sf.read_text(encoding="utf-8"))
     report = generate_flow_report(run_dir, summary)
-    snapshot = generate_critical_snapshot(run_dir, summary)
-    from core.cli import log_success
+    snapshot = generate_critical_snapshot(run_dir, summary, rotate_landscape=False, layout=args.layout)
+    from core.cli import log_success, tips_report_layout
     log_success(f"报告已生成: {report}")
     if snapshot:
         print(f"   🖼  关键截图: {snapshot}")
+    tips_report_layout(args.id)
     return 0
 
 

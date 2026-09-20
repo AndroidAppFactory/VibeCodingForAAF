@@ -104,6 +104,7 @@ def render_critical_snapshot(
     out_path: Path,
     max_cols: int = 4,
     max_card_width: int = 0,
+    rotate_landscape: bool = True,
 ) -> Optional[Path]:
     """将 cards 列表渲染为统一样式的关键事件拼图。
 
@@ -113,6 +114,9 @@ def render_critical_snapshot(
         out_path: 输出 PNG 路径
         max_cols: 最大列数，默认 4
         max_card_width: 单卡片最大宽度（像素），0=不限制。多平台合并时建议 1600
+        rotate_landscape: 是否把横图（宽>高）旋转 90° 统一为竖图。
+            adb（手机）默认 True——手机竖屏截图不转，只把横屏视频转正；
+            web/win（浏览器/桌面）截图天生横向，应传 False 保持原方向。
 
     Returns:
         成功返回 out_path，cards 为空返回 None
@@ -131,151 +135,93 @@ def render_critical_snapshot(
     BG = (10, 10, 26)
     TITLE_COLOR = (79, 195, 247)
 
-    # 不做固定缩略图宽度，保持原始分辨率，列宽取所有图片最大宽度
+    # rotate_landscape：仅 adb 手机截图需要——把横屏视频（宽>高）转正为竖屏，
+    # 使方向更协调；web/win 截图天生横向，传 False 保持原方向（否则网页侧躺）。
     thumbs = []
     for c in cards:
         img = Image.open(c["image"]).convert("RGB")
+        if rotate_landscape and img.width > img.height:
+            img = img.transpose(Image.ROTATE_270)
         thumbs.append(img)
 
-    col_w = max(t.width for t in thumbs)
+    # 统一高度对齐（关键）：横竖屏混排（如 mixed 的 adb 竖屏 + web 横屏）时，
+    # 若按统一列宽缩放，竖图会被放大到横图宽度导致高度暴增而被截断。
+    # 改为「所有图缩放到统一高度、宽度各异」——横竖都不截断，视觉协调。
+    # 统一高度取所有图原始高度的最小值（避免放大失真），并设上限防画布过大。
+    target_h = min(t.height for t in thumbs)
+    target_h = min(target_h, 2400)
+    # 若限制了单卡片最大宽度，换算为对应高度上限（保证最宽的图不超过 max_card_width）
+    if max_card_width:
+        widest_ratio = max(t.width / t.height for t in thumbs)  # 宽高比最大 = 最宽的图
+        if target_h * widest_ratio > max_card_width:
+            target_h = int(max_card_width / widest_ratio)
+    thumbs = [
+        t.resize((max(1, int(t.width * target_h / t.height)), target_h), Image.LANCZOS)
+        for t in thumbs
+    ]
+    thumb_ws = [t.width for t in thumbs]
 
-    # 限制单卡片最大宽度（防止多平台合并时画布过大）
-    if max_card_width and col_w > max_card_width:
-        col_w = max_card_width
-        thumbs = [
-            t.resize((col_w, int(t.height * col_w / t.width)), Image.LANCZOS)
-            for t in thumbs
-        ]
+    # 行分组（每行 COLS 张）：每行宽度 = 该行各图宽之和 + gap，画布宽取最大行宽
+    rows = (len(cards) + COLS - 1) // COLS
+    row_widths = []
+    for r in range(rows):
+        seg = thumb_ws[r * COLS:(r + 1) * COLS]
+        row_widths.append(sum(seg) + GAP * (len(seg) - 1))
+    body_w = max(row_widths)
+    canvas_w = PAD * 2 + body_w
 
-    # 字体大小按截图宽度自适应，加上限避免桌面截图字过大
-    # 1080px → info 24 / header 18；1920px → info 34 / header 32
-    header_size = max(18, min(col_w // 55, 36))
-    info_size = max(24, min(col_w // 50, 42))
+    # 字体按「实际画布宽」等比放大：notify 会把整图等比压缩到约 1000 宽，
+    # 压缩后字号 = 原字号 × target/canvas_w，故字号需占画布宽足够比例才清晰。
+    header_size = max(24, min(canvas_w // 50, 150))
+    info_size = max(30, min(canvas_w // 44, 170))
     header_font = snapshot_font(header_size, bold=True)
     info_font = snapshot_font(info_size, bold=True)
 
     probe = Image.new("RGB", (10, 10))
     probe_draw = ImageDraw.Draw(probe)
-    header_lines_list = [wrap_text(probe_draw, c["title"], header_font, col_w - 16) for c in cards]
+    header_lines_list = [
+        wrap_text(probe_draw, c["title"], header_font, max(40, thumb_ws[i] - 16))
+        for i, c in enumerate(cards)
+    ]
     max_lines = max(len(lines) for lines in header_lines_list)
     line_h = header_font.size + 6
     HEADER_H = max(40, line_h * max_lines + 14)
 
-    card_h = max(t.height for t in thumbs) + HEADER_H
-    rows = (len(cards) + COLS - 1) // COLS
-    title_h = 64
+    card_h = target_h + HEADER_H
+    # 标题栏高度自适应 info 字号，避免大字号溢出与首行卡片重合
+    title_h = max(64, info_size + 24)
 
-    canvas_w = PAD * 2 + COLS * col_w + (COLS - 1) * GAP
     canvas_h = title_h + PAD * 2 + rows * card_h + (rows - 1) * GAP
 
     canvas = Image.new("RGB", (canvas_w, canvas_h), BG)
     draw = ImageDraw.Draw(canvas)
     draw.text((PAD, (title_h - info_font.size) // 2), info_text, font=info_font, fill=TITLE_COLOR)
 
+    # 按 group 分配颜色：同一个 group（如同一 flow 的同一 sub_index）同色
+    group_colors: dict = {}
+    color_idx = 0
     for i, (card, thumb, header_lines) in enumerate(zip(cards, thumbs, header_lines_list)):
         row, col = divmod(i, COLS)
-        x = PAD + col * (col_w + GAP)
+        cw = thumb.width
+        # 行内 x 累加（各图宽度不同）
+        x = PAD + sum(thumb_ws[row * COLS:row * COLS + col]) + GAP * col
         y = title_h + PAD + row * (card_h + GAP)
-        color = hex_to_rgb(SNAPSHOT_COLORS[i % len(SNAPSHOT_COLORS)])
+        group = card.get("group", i)
+        if group not in group_colors:
+            group_colors[group] = SNAPSHOT_COLORS[color_idx % len(SNAPSHOT_COLORS)]
+            color_idx += 1
+        color = hex_to_rgb(group_colors[group])
 
-        draw.rounded_rectangle([x - 3, y - 3, x + col_w + 3, y + card_h + 3], radius=10, outline=color, width=3)
-        draw.rectangle([x, y, x + col_w, y + HEADER_H], fill=color)
+        draw.rounded_rectangle([x - 3, y - 3, x + cw + 3, y + card_h + 3], radius=10, outline=color, width=3)
+        draw.rectangle([x, y, x + cw, y + HEADER_H], fill=color)
 
         ty = y + (HEADER_H - line_h * len(header_lines)) // 2
         for line in header_lines:
             tw = draw.textlength(line, font=header_font)
-            draw.text((x + (col_w - tw) / 2, ty), line, font=header_font, fill=(255, 255, 255))
+            draw.text((x + (cw - tw) / 2, ty), line, font=header_font, fill=(255, 255, 255))
             ty += line_h
 
-        # 等比缩放至列宽后贴入
-        scale = col_w / thumb.width
-        resized = thumb.resize((col_w, int(thumb.height * scale)), Image.LANCZOS)
-        canvas.paste(resized, (x, y + HEADER_H))
-
-    canvas.save(str(out_path), format="PNG", optimize=True)
-    print(f"  快照已保存: {out_path} ({out_path.stat().st_size / 1024 / 1024:.1f}MB)", file=sys.stderr)
-    return out_path
-
-
-# ─── Mixed 流程专用：把每个子流程的 critical_after_snapshot.png 竖向堆叠 ─────────
-
-def render_mixed_critical_snapshot(
-    groups: list[dict],
-    info_text: str,
-    out_path: Path,
-    max_card_width: int = 1600,
-) -> Optional[Path]:
-    """Mixed 流程专用拼图：把各子流程已渲染的 critical_after_snapshot.png 竖向堆叠。
-
-    Args:
-        groups: [{"label": "[web] 浏览器 IP 查看", "image": Path 至已渲染的 PNG}]
-        info_text: 顶部信息栏文案
-        out_path: 输出 PNG 路径
-        max_card_width: 每个子流程图最大宽度（像素），超过则缩放
-
-    Returns:
-        成功返回 out_path，无 image 返回 None
-    """
-    from PIL import Image, ImageDraw
-
-    if not groups:
-        return None
-
-    PAD = 20
-    GAP = 12
-    BG = (10, 10, 26)
-    TITLE_H = 64
-
-    # 字体
-    info_font = snapshot_font(26, bold=True)
-    ldr = ImageDraw.Draw(Image.new("RGB", (10, 10)))
-    max_label_w = max(ldr.textlength(g["label"], font=snapshot_font(18, bold=True)) for g in groups)
-    label_w = max(160, int(max_label_w) + 24)
-
-    # 加载并缩放每个子流程的截图
-    rows: list[dict] = []
-    for g in groups:
-        try:
-            img = Image.open(g["image"]).convert("RGB")
-        except Exception:
-            continue
-        if max_card_width and img.width > max_card_width:
-            img = img.resize(
-                (max_card_width, int(img.height * max_card_width / img.width)),
-                Image.LANCZOS,
-            )
-        rows.append({"label": g["label"], "img": img, "h": img.height, "w": img.width})
-
-    if not rows:
-        return None
-
-    # 计算画布尺寸
-    max_row_w = max(label_w + 16 + r["w"] for r in rows)
-    canvas_w = PAD * 2 + max_row_w
-    row_gap = 16
-    canvas_h = TITLE_H + PAD * 2 + sum(r["h"] for r in rows) + row_gap * (len(rows) - 1)
-
-    canvas = Image.new("RGB", (canvas_w, canvas_h), BG)
-    draw = ImageDraw.Draw(canvas)
-    draw.text((PAD, (TITLE_H - info_font.size) // 2), info_text, font=info_font,
-              fill=(79, 195, 247))
-
-    label_font = snapshot_font(18, bold=True)
-    cur_y = TITLE_H + PAD
-    for ri, row in enumerate(rows):
-        color = hex_to_rgb(SNAPSHOT_COLORS[ri % len(SNAPSHOT_COLORS)])
-        # 左侧标签
-        draw.rounded_rectangle(
-            [PAD, cur_y, PAD + label_w, cur_y + row["h"]], radius=8, fill=color,
-        )
-        lw = draw.textlength(row["label"], font=label_font)
-        draw.text(
-            (PAD + (label_w - lw) / 2, cur_y + (row["h"] - label_font.size) / 2),
-            row["label"], font=label_font, fill=(255, 255, 255),
-        )
-        # 右侧子流程截图
-        canvas.paste(row["img"], (PAD + label_w + 16, cur_y))
-        cur_y += row["h"] + row_gap
+        canvas.paste(thumb, (x, y + HEADER_H))
 
     canvas.save(str(out_path), format="PNG", optimize=True)
     print(f"  快照已保存: {out_path} ({out_path.stat().st_size / 1024 / 1024:.1f}MB)", file=sys.stderr)

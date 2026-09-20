@@ -9,7 +9,7 @@ document.getElementById('phone-overlay').addEventListener('click', (e) => {
   const px = e.offsetX;
   const py = e.offsetY;
 
-  // 转换为设备坐标
+  // 转换为设备坐标（竖屏自然方向，直接缩放）
   const devX = Math.round(px / PHONE_W * state.resolution[0]);
   const devY = Math.round(py / PHONE_H * state.resolution[1]);
 

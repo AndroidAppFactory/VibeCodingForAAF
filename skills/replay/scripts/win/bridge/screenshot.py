@@ -39,14 +39,7 @@ def capture_fullscreen(output_path, mark_pos: tuple = None) -> bool:
         if 0 <= gx < img.width and 0 <= gy < img.height:
             _draw_crosshair(img, gx, gy)
 
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        img.save(str(output_path), format="JPEG", quality=85)
-    except Exception as e:
-        print(f"    ⚠ 截图保存失败: {e}")
-        return False
-    return True
+    return _save_image(img, output_path)
 
 
 def capture_window(proc_name: str, output_path, mark_pos: tuple = None) -> bool:
@@ -96,14 +89,7 @@ def capture_window(proc_name: str, output_path, mark_pos: tuple = None) -> bool:
         if 0 <= gx < img.width and 0 <= gy < img.height:
             _draw_crosshair(img, gx, gy)
 
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        img.save(str(output_path), format="JPEG", quality=85)
-    except Exception as e:
-        print(f"    ⚠ 截图保存失败: {e}")
-        return False
-    return True
+    return _save_image(img, output_path)
 
 
 def capture_all_windows(exe_dir: str, output_path, mark_pos: tuple = None) -> bool:
@@ -160,14 +146,34 @@ def capture_all_windows(exe_dir: str, output_path, mark_pos: tuple = None) -> bo
         if 0 <= gx < img.width and 0 <= gy < img.height:
             _draw_crosshair(img, gx, gy)
 
+    return _save_image(img, output_path)
+
+
+def _save_image(img: Image.Image, output_path) -> bool:
+    """按文件扩展名决定保存格式（.png → PNG，其余 → JPEG），消除文件名与内容不一致。"""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    fmt = "PNG" if output_path.suffix.lower() == ".png" else "JPEG"
     try:
-        img.save(str(output_path), format="JPEG", quality=85)
+        if fmt == "PNG":
+            img.save(str(output_path), format="PNG")
+        else:
+            img.save(str(output_path), format="JPEG", quality=85)
     except Exception as e:
         print(f"    ⚠ 截图保存失败: {e}")
         return False
     return True
+
+
+def get_screen_size() -> tuple[int, int]:
+    """获取虚拟屏幕总尺寸 (width, height)，与 all_screens 截图坐标基准一致。"""
+    import ctypes
+    user32 = ctypes.windll.user32
+    w = user32.GetSystemMetrics(78)  # SM_CXVIRTUALSCREEN
+    h = user32.GetSystemMetrics(79)  # SM_CYVIRTUALSCREEN
+    if not w or not h:
+        return ImageGrab.grab(all_screens=True).size
+    return int(w), int(h)
 
 
 def _draw_crosshair(img: Image.Image, x: int, y: int):

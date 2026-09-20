@@ -11,23 +11,20 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 # 加载环境变量（~/.zixiekit/scripts/bootstrap.py 由 zk init / zk instance update 部署）
-sys.path.insert(0, str(Path.home() / ".zixiekit" / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 from bootstrap import load_env  # noqa: E402
 
 load_env()
 from pathlib import Path
 from typing import Optional
-
-# 查找全局工具模块（adb_tools 在 ZixieKit 根 scripts/ 下）
-_self = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(_self))
-_zk = os.environ.get("ZIXIEKIT_HOME")
-if _zk:
-    sys.path.insert(0, str(Path(_zk) / "scripts"))
-del _self, _zk
 
 import adb_tools  # noqa: E402
 
@@ -44,8 +41,8 @@ def _take_screenshot_retry(adb: list[str], path: str, max_retries: int = 2, dela
 
 
 def _adb_log(msg: str = "") -> None:
-    """ADB 统一日志，带时间戳前缀"""
-    ts = time.strftime("%H:%M:%S")
+    """ADB 统一日志，带毫秒时间戳前缀"""
+    ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
     print(f"  [{ts}] {msg}")
 
 
@@ -56,8 +53,15 @@ def execute_event(event: dict, adb: list[str],
                   screenshot_dir: Optional[Path] = None,
                   event_index: int = 0,
                   total_events: int = 0,
-                  device: Optional[str] = None) -> dict:
-    """执行单个事件，返回截屏/录屏信息"""
+                  device: Optional[str] = None,
+                  rotation: int = 0) -> dict:
+    """执行单个事件，返回截屏/录屏信息
+
+    Args:
+        rotation: 当前屏幕旋转角度（0/90/180/270）。
+                  坐标事件（tap/multitap/swipe）在 scale_coords 等比缩放后，
+                  再按此旋转角映射为 input tap 使用的逻辑显示坐标。
+    """
     step_prefix = f"[{event_index + 1}/{total_events}]" if total_events > 0 else ""
 
     # tips 类型不需要 ADB，跳过检查
@@ -72,7 +76,11 @@ def execute_event(event: dict, adb: list[str],
 
     delay_before = event.get("delay_before_ms", event.get("delay_ms", 0))
 
-    if capture_mode == "video" and screenshot_dir:
+    if capture_mode == "none":
+        # 跳过采集：只等待前延迟，不截屏不录屏
+        if delay_before > 0 and speed > 0:
+            time.sleep(delay_before / 1000.0 / speed)
+    elif capture_mode == "video" and screenshot_dir:
         before_video_path = str(screenshot_dir / f"event_{event_index:03d}_0_before.mp4")
         record_time = min(int((delay_before / 1000.0 / speed) + 10), 30) if delay_before > 0 else 10
         record_proc = adb_tools.start_screenrecord(adb, device_video_path, time_limit=record_time)
@@ -98,12 +106,24 @@ def execute_event(event: dict, adb: list[str],
 
     if ev_type == "tap":
         x, y = adb_tools.scale_coords(event["x"], event["y"], src_res, dst_res)
+        x, y = adb_tools.rotate_coords_to_display(x, y, dst_res, rotation)
         subprocess.run(adb + ["shell", "input", "tap", str(x), str(y)], capture_output=True, timeout=10)
         _adb_log(f"{step_prefix} ▶ adb shell input tap {x} {y}")
 
+    elif ev_type == "multitap":
+        x, y = adb_tools.scale_coords(event["x"], event["y"], src_res, dst_res)
+        x, y = adb_tools.rotate_coords_to_display(x, y, dst_res, rotation)
+        count = max(1, int(event.get("count", 2)))
+        for _ in range(count):
+            subprocess.run(adb + ["shell", "input", "tap", str(x), str(y)], capture_output=True, timeout=10)
+            time.sleep(0.1)
+        _adb_log(f"{step_prefix} ▶ adb shell input tap {x} {y} ×{count}（连续点击，间隔 100ms）")
+
     elif ev_type == "swipe":
         x1, y1 = adb_tools.scale_coords(event["x1"], event["y1"], src_res, dst_res)
+        x1, y1 = adb_tools.rotate_coords_to_display(x1, y1, dst_res, rotation)
         x2, y2 = adb_tools.scale_coords(event["x2"], event["y2"], src_res, dst_res)
+        x2, y2 = adb_tools.rotate_coords_to_display(x2, y2, dst_res, rotation)
         duration = event.get("duration_ms", 300)
         subprocess.run(adb + ["shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(duration)], capture_output=True, timeout=10)
         _adb_log(f"{step_prefix} ▶ adb shell input swipe {x1} {y1} {x2} {y2} {duration}")
@@ -143,6 +163,9 @@ def execute_event(event: dict, adb: list[str],
             subprocess.run(adb + ["shell", "am", "force-stop", package], capture_output=True, timeout=10)
             subprocess.run(adb + ["shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1"], capture_output=True, timeout=10)
             _adb_log(f"{step_prefix} ▶ adb shell am force-stop {package} && adb shell monkey -p {package} -c android.intent.category.LAUNCHER 1")
+        elif action == "launch":
+            subprocess.run(adb + ["shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1"], capture_output=True, timeout=10)
+            _adb_log(f"{step_prefix} ▶ adb shell monkey -p {package} -c android.intent.category.LAUNCHER 1")
         elif action == "clear-all":
             result = subprocess.run(adb + ["shell", "pm", "list", "packages", "-3"], capture_output=True, text=True, timeout=10)
             packages = []
@@ -178,10 +201,29 @@ def execute_event(event: dict, adb: list[str],
         elif action == "open-schema":
             uri = event.get("content", "")
             if uri:
-                subprocess.run(adb + ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", uri], capture_output=True, timeout=10)
-                _adb_log(f"{step_prefix} ▶ adb shell am start -a android.intent.action.VIEW -d {uri}")
+                # 强制 NEW_TASK | CLEAR_TOP（0x14000000）：确保目标 Activity 重建，
+                # 绕过 singleTop/singleTask 走 onNewIntent 导致页面不刷新 url 的问题
+                subprocess.run(adb + ["shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", uri, "-f", "0x14000000"], capture_output=True, timeout=10)
+                _adb_log(f"{step_prefix} ▶ adb shell am start -a android.intent.action.VIEW -d {uri} -f 0x14000000")
             else:
                 _adb_log("⚠ open-schema 缺少 URI")
+        elif action == "uninstall":
+            subprocess.run(adb + ["uninstall", package], capture_output=True, text=True, timeout=30)
+            _adb_log(f"{step_prefix} ▶ adb uninstall {package}")
+        elif action == "install":
+            from adb_core.config import INSTALL_DIR
+            filename = event.get("content", "")
+            if not filename:
+                _adb_log("⚠ install 缺少文件名（content 字段）")
+            else:
+                if not filename.lower().endswith(".apk"):
+                    filename = f"{filename}.apk"
+                apk_path = INSTALL_DIR / filename
+                if not apk_path.is_file():
+                    _adb_log(f"⚠ APK 不存在: {apk_path}（请先放到 {INSTALL_DIR}）")
+                else:
+                    subprocess.run(adb + ["install", "-r", str(apk_path)], capture_output=True, text=True, timeout=120)
+                    _adb_log(f"{step_prefix} ▶ adb install -r {apk_path}")
         else:
             _adb_log(f"⚠ 未知 adb 操作: {action}")
 
@@ -195,7 +237,11 @@ def execute_event(event: dict, adb: list[str],
 
     delay_after = event.get("delay_after_ms", 0)
 
-    if capture_mode == "video" and screenshot_dir:
+    if capture_mode == "none":
+        # 跳过采集：只等待后延迟，不截屏不录屏
+        if delay_after > 0 and speed > 0:
+            time.sleep(delay_after / 1000.0 / speed)
+    elif capture_mode == "video" and screenshot_dir:
         after_video_path = str(screenshot_dir / f"event_{event_index:03d}_1_after.mp4")
         device_video_after = f"/sdcard/adb_replay_video_{event_index:03d}_after.mp4"
         record_time = min(int((delay_after / 1000.0 / speed) + 5), 30) if delay_after > 0 else 5
@@ -222,8 +268,9 @@ def execute_event(event: dict, adb: list[str],
 
 
 def play(input_dir: str, speed: float = 1.0,
-         device: Optional[str] = None, repeat: int = 1,
-         screenshot: bool = False, screenshot_duration: float = 1) -> None:
+         device: Optional[str] = None, max_delay: Optional[float] = None,
+         repeat: int = 1, screenshot: bool = False,
+         screenshot_duration: float = 1) -> None:
     """执行回放"""
     record_dir = Path(input_dir).resolve()
     data_file = record_dir / "data.json"
@@ -233,6 +280,14 @@ def play(input_dir: str, speed: float = 1.0,
 
     src_res = tuple(data.get("resolution", [0, 0]))
     events = data.get("events", [])
+
+    if max_delay and max_delay > 0:
+        _cap_ms = max_delay * 1000
+        events = [dict(ev) for ev in events]
+        for _ev in events:
+            for _k in ("delay_before_ms", "delay_after_ms"):
+                if _ev.get(_k) and _ev[_k] > _cap_ms:
+                    _ev[_k] = _cap_ms
 
     if not events:
         print("⚠️  录制文件中没有事件")
@@ -249,12 +304,16 @@ def play(input_dir: str, speed: float = 1.0,
     adb = adb_tools.get_adb_cmd(device)
 
     dst_res = adb_tools.get_current_resolution(device)
+    rotation = adb_tools.get_display_rotation(device)
     if dst_res[0] > 0:
         print(f"   当前分辨率: {dst_res[0]}x{dst_res[1]}")
+        if rotation in (90, 270):
+            adb_tools.print_rotation_check(device)
         if src_res != dst_res:
             print(f"   ⚠️  分辨率不同，将自动缩放坐标")
     else:
         dst_res = src_res
+        rotation = 0
 
     screenshot_dir = None
     if screenshot:
@@ -285,10 +344,13 @@ def play(input_dir: str, speed: float = 1.0,
                                          screenshot_dir=screenshot_dir,
                                          event_index=i,
                                          total_events=len(events),
-                                         device=device)
+                                         device=device,
+                                         rotation=rotation)
                 ev_copy = dict(event)
                 if captures:
                     ev_copy["screenshots"] = captures
+                elif event.get("capture_mode") == "none":
+                    ev_copy.pop("screenshots", None)
                 play_events.append(ev_copy)
             except RuntimeError as e:
                 print(f"  ❌ 事件 {i + 1} ADB 连接失败: {e}", file=sys.stderr)

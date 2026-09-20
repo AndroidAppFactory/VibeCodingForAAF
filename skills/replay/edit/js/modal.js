@@ -2,6 +2,7 @@
 const PLATFORM_EVENT_TYPES = {
   adb: [
     {value:'tap', label:'tap（点击）'},
+    {value:'multitap', label:'multitap（连续点击）'},
     {value:'swipe', label:'swipe（滑动）'},
     {value:'keyevent', label:'keyevent（按键）'},
     {value:'text', label:'text（文本）'},
@@ -78,7 +79,7 @@ async function insertFlowEvents(name) {
       const stype = s.type || 'event';
       if (stype === 'event') {
         const ev = {type: s.action || 'tap'};
-        for (const k of ['x','y','x1','y1','x2','y2','duration_ms','code','content','delay_before_ms','delay_after_ms']) {
+        for (const k of ['x','y','x1','y1','x2','y2','duration_ms','count','code','content','delay_before_ms','delay_after_ms']) {
           if (s[k] !== undefined) ev[k] = s[k];
         }
         if (s.action === 'adb') {
@@ -113,6 +114,11 @@ function updateAddForm() {
     fields.innerHTML = `
       <div class="form-group"><label>X</label><input type="number" id="add-x" value="${Math.round(state.resolution[0]/2)}"></div>
       <div class="form-group"><label>Y</label><input type="number" id="add-y" value="${Math.round(state.resolution[1]/2)}"></div>`;
+  } else if (type === 'multitap') {
+    fields.innerHTML = `
+      <div class="form-group"><label>X</label><input type="number" id="add-x" value="${Math.round(state.resolution[0]/2)}"></div>
+      <div class="form-group"><label>Y</label><input type="number" id="add-y" value="${Math.round(state.resolution[1]/2)}"></div>
+      <div class="form-group"><label>点击次数</label><input type="number" id="add-count" value="2" step="1" min="1"></div>`;
   } else if (type === 'swipe') {
     fields.innerHTML = `
       <div class="form-group"><label>起点 X</label><input type="number" id="add-x1" value="${Math.round(state.resolution[0]/2)}"></div>
@@ -133,13 +139,17 @@ function updateAddForm() {
           <option value="force-stop">force-stop（杀掉应用）</option>
           <option value="clear">clear（清理缓存）</option>
           <option value="restart">restart（应用重启）</option>
+          <option value="launch">launch（拉起应用）</option>
           <option value="clear-all">clear-all（清理所有后台）</option>
           <option value="lock-screen">lock-screen（锁屏）</option>
           <option value="wifi-connect">wifi-connect（连接 WiFi）</option>
           <option value="open-schema">open-schema（打开 Schema）</option>
+          <option value="uninstall">uninstall（卸载应用）</option>
+          <option value="install">install（安装 APK）</option>
         </select>
       </div>
       <div class="form-group" id="add-package-group"><label>包名</label><input type="text" id="add-package" value="" placeholder="com.example.app"></div>
+      <div class="form-group" id="add-install-group" style="display:none"><label>文件名</label><input type="text" id="add-install-content" value="" placeholder="APK 文件名（可省略 .apk）"></div>
       <div class="form-group" id="add-wifi-group" style="display:none">
         <label>SSID</label><input type="text" id="add-wifi-ssid" value="" placeholder="WiFi 名称">
         <label style="margin-top:8px">密码</label><input type="password" id="add-wifi-password" value="" placeholder="WiFi 密码">
@@ -247,22 +257,32 @@ function updateAddDelayDefaults(type) {
 function togglePackageField() {
   const action = document.getElementById('add-action').value;
   const pkgGroup = document.getElementById('add-package-group');
+  const installGroup = document.getElementById('add-install-group');
   const wifiGroup = document.getElementById('add-wifi-group');
   const schemaGroup = document.getElementById('add-schema-group');
   if (action === 'wifi-connect') {
     pkgGroup.style.display = 'none';
+    if (installGroup) installGroup.style.display = 'none';
     if (wifiGroup) wifiGroup.style.display = '';
     if (schemaGroup) schemaGroup.style.display = 'none';
   } else if (action === 'open-schema') {
     pkgGroup.style.display = 'none';
+    if (installGroup) installGroup.style.display = 'none';
     if (wifiGroup) wifiGroup.style.display = 'none';
     if (schemaGroup) schemaGroup.style.display = '';
+  } else if (action === 'install') {
+    pkgGroup.style.display = 'none';
+    if (installGroup) installGroup.style.display = '';
+    if (wifiGroup) wifiGroup.style.display = 'none';
+    if (schemaGroup) schemaGroup.style.display = 'none';
   } else if (action === 'clear-all') {
     pkgGroup.style.display = 'none';
+    if (installGroup) installGroup.style.display = 'none';
     if (wifiGroup) wifiGroup.style.display = 'none';
     if (schemaGroup) schemaGroup.style.display = 'none';
   } else {
     pkgGroup.style.display = '';
+    if (installGroup) installGroup.style.display = 'none';
     if (wifiGroup) wifiGroup.style.display = 'none';
     if (schemaGroup) schemaGroup.style.display = 'none';
   }
@@ -295,11 +315,15 @@ function confirmAdd() {
   let ev = { type, delay_before_ms: delayBefore, delay_after_ms: delayAfter };
   if (name) ev.name = name;
   if (isCritical) ev.is_critical = true;
-  if (captureMode === 'video') ev.capture_mode = 'video';
+  if (captureMode === 'video' || captureMode === 'none') ev.capture_mode = captureMode;
 
   if (type === 'tap') {
     ev.x = parseInt(document.getElementById('add-x').value) || 0;
     ev.y = parseInt(document.getElementById('add-y').value) || 0;
+  } else if (type === 'multitap') {
+    ev.x = parseInt(document.getElementById('add-x').value) || 0;
+    ev.y = parseInt(document.getElementById('add-y').value) || 0;
+    ev.count = parseInt(document.getElementById('add-count').value) || 2;
   } else if (type === 'swipe') {
     ev.x1 = parseInt(document.getElementById('add-x1').value) || 0;
     ev.y1 = parseInt(document.getElementById('add-y1').value) || 0;
@@ -318,6 +342,8 @@ function confirmAdd() {
       ev.security = 'wpa2';
     } else if (ev.action === 'open-schema') {
       ev.content = document.getElementById('add-schema-content').value || '';
+    } else if (ev.action === 'install') {
+      ev.content = document.getElementById('add-install-content').value || '';
     } else {
       ev.package = document.getElementById('add-package').value || '';
     }

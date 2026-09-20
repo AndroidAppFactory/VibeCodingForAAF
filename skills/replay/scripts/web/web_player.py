@@ -544,36 +544,14 @@ def _flow_step_desc(step: dict) -> str:
     return t
 
 
-def run_flow_events(
-    steps: list[dict],
-    run_dir: Path,
-    *,
-    headless: bool = False,
-    timeout: int = 30,
-    speed: float = 1.0,
-) -> list[dict]:
-    """执行已展开的 Flow 步骤列表（统一调用 core.runner.run_steps）。
+def build_hooks(headless: bool = False, timeout: int = 30, speed: float = 1.0):
+    """构造 web 平台的 (setup, teardown, executor) 三元组。
 
-    浏览器生命周期在调用 core.runner 之前/之后管理，page 通过 extra 传入 step_executor。
+    供单端 run_flow_events 和 mixed 单进程编排共用。
+    浏览器/上下文/page 存入 ctx.extra，run_dir 从 ctx.run_dir 取。
     """
-    # 环境预检：自动安装缺失依赖
-    try:
-        from playwright.sync_api import sync_playwright  # noqa: F401
-    except ImportError:
-        _log("📦 playwright 未安装，自动安装中...")
-        import subprocess, sys, shutil
-        if shutil.which("pipx") and "pipx" in sys.executable:
-            subprocess.run(["pipx", "inject", "zixiekit", "playwright"], check=True)
-        else:
-            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], check=True)
-        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
-        _log("✅ playwright 安装完成")
-    from core.runner import run_steps
-
-    _log("=== Flow 事件级回放启动 ===")
-
-    # ── setup_hook：启动浏览器 ──
-    def _setup(ctx):
+    # ── setup：启动浏览器 ──
+    def setup(ctx):
         from playwright.sync_api import sync_playwright
         pw = sync_playwright().start()
         browser = pw.chromium.launch(headless=headless, args=[
@@ -591,14 +569,13 @@ def run_flow_events(
             _log(f"  🆕 检测到新页面: {p.url[:60]}")
         context.on("page", _on_new_page)
 
-        # 存入 ctx.extra 供 step_executor 和 teardown 使用
         ctx.extra["pw"] = pw
         ctx.extra["browser"] = browser
         ctx.extra["context"] = context
         ctx.extra["page"] = page
 
-    # ── teardown_hook：关闭浏览器 ──
-    def _teardown(ctx):
+    # ── teardown：关闭浏览器 ──
+    def teardown(ctx):
         browser = ctx.extra.get("browser")
         pw = ctx.extra.get("pw")
         if browser:
@@ -612,8 +589,8 @@ def run_flow_events(
             except Exception:
                 pass
 
-    # ── web step_executor：delay + 截图 + 执行 + 截图 + delay_after ──
-    def web_step_executor(ctx, step: dict) -> tuple[bool, dict]:
+    # ── executor：delay + 截图 + 执行 + 截图 + delay_after ──
+    def executor(ctx, step: dict) -> tuple[bool, dict]:
         from core.screenshot import screenshot_name
 
         page_ = ctx.extra["page"]
@@ -638,7 +615,7 @@ def run_flow_events(
         dam = step.get("delay_after_ms")
         delay_after = (dam / 1000.0) if dam else delay_before
 
-        step_dir = run_dir / step_dir_name
+        step_dir = ctx.run_dir / step_dir_name
         before_name = screenshot_name(actual_num - 1, "before")
         after_name = screenshot_name(actual_num - 1, "after")
 
@@ -669,7 +646,7 @@ def run_flow_events(
             "browser": browser_,
             "timeout": timeout,
             "speed": speed,
-            "run_dir": run_dir,
+            "run_dir": ctx.run_dir,
             "pending_new_page": None,
         })()
 
@@ -696,23 +673,79 @@ def run_flow_events(
         if is_critical:
             for ph in ("before", "after"):
                 path = f"{step_dir_name}/screenshots/{screenshot_name(actual_num - 1, ph)}"
-                if (run_dir / path).exists():
+                if (ctx.run_dir / path).exists():
                     critical_screenshots.append(path)
 
         step_name = _flow_step_desc(step)
         return success, {"name": step_name, "critical_screenshots": critical_screenshots}
 
+    return setup, teardown, executor
+
+
+def probe() -> bool:
+    """探测 web 平台是否可用：playwright 可 import。
+
+    实际浏览器启动失败由 setup 阶段的 skipped 兜底，此处不启动浏览器避免开销。
+    """
+    try:
+        import playwright  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def run_flow_events(
+    steps: list[dict],
+    run_dir: Path,
+    *,
+    headless: bool = False,
+    timeout: int = 30,
+    speed: float = 1.0,
+    max_delay: float | None = None,
+    notify_hook=None,
+    report_hook=None,
+    tips_hook=None,
+    flow_data=None,
+) -> dict:
+    """执行已展开的 Flow 步骤列表（统一调用 core.runner.run_steps）。
+
+    浏览器生命周期在调用 core.runner 之前/之后管理，page 通过 extra 传入 step_executor。
+    """
+    # 环境预检：自动安装缺失依赖
+    try:
+        from playwright.sync_api import sync_playwright  # noqa: F401
+    except ImportError:
+        _log("📦 playwright 未安装，自动安装中...")
+        import subprocess, sys, shutil
+        if shutil.which("pipx") and "pipx" in sys.executable:
+            subprocess.run(["pipx", "inject", "zixiekit", "playwright"], check=True)
+        else:
+            subprocess.run([sys.executable, "-m", "pip", "install", "playwright"], check=True)
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+        _log("✅ playwright 安装完成")
+    from core.runner import run_steps
+
+    _log("=== Flow 事件级回放启动 ===")
+
+    # ── setup/teardown/executor：复用 build_hooks 工厂（与 mixed 单进程共用）──
+    _setup, _teardown, web_step_executor = build_hooks(headless=headless, timeout=timeout, speed=speed)
+
     # ── 调用 core.runner.run_steps（含 setup/teardown）──
     summary = run_steps(
         steps=steps,
         step_executor=web_step_executor,
-        name="web_flow",
+        name=flow_data.get("name", "web_flow") if flow_data else "web_flow",
+        flow_data=flow_data,
         speed=speed,
-        device="browser",
+        max_delay=max_delay,
+        device="web",
         run_dir=run_dir,
         setup_hook=_setup,
         teardown_hook=_teardown,
+        notify_hook=notify_hook,
+        report_hook=report_hook,
+        tips_hook=tips_hook,
         extra={},
     )
 
-    return summary.get("steps", [])
+    return summary

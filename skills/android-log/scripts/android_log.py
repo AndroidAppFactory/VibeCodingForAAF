@@ -3,7 +3,11 @@
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path.home() / ".zixiekit" / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 from bootstrap import load_env  # noqa: E402
 
 load_env()
@@ -22,11 +26,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-# 导入公共 adb 工具库
+# 导入公共 adb 工具库：优先 skill 内部分发副本（部署环境），否则回退运行时部署路径（源环境）
 import sys
 from pathlib import Path
-# 添加 scripts 目录到路径
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent / "scripts"))
+for _p in Path(__file__).resolve().parents:
+    if (_p / "scripts").is_dir():
+        sys.path.insert(0, str(_p / "scripts"))
+        break
+sys.path.insert(1, str(Path.home() / ".zixiekit" / "scripts"))
 from adb_tools import get_adb_cmd, diagnose_adb_status
 
 

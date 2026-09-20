@@ -71,6 +71,7 @@ def cmd_play(args: argparse.Namespace) -> int:
 
     try:
         play(str(target_path), speed=args.speed or 1.0, device=args.device,
+             max_delay=getattr(args, "max_delay", None),
              repeat=args.repeat or 1, screenshot=not args.no_screenshot,
              screenshot_duration=args.screenshot_duration or 1)
         returncode = 0

@@ -206,7 +206,7 @@ def _check_sdk_config(
     if not config_file.exists():
         return
 
-    content = config_file.read_text()
+    content = config_file.read_text(encoding="utf-8")
     checks = [
         ("compileSdkVersion", aaf_config.compile_sdk_version),
         ("buildToolsVersion", aaf_config.build_tools_version),
@@ -238,7 +238,7 @@ def _check_kotlin_gradle(proj_path: Path, aaf_config: AAFConfig, result: Project
     if not build_file.exists():
         return
 
-    content = build_file.read_text()
+    content = build_file.read_text(encoding="utf-8")
 
     # kotlin_version
     if aaf_config.kotlin_version:
@@ -271,7 +271,7 @@ def _check_gradle_wrapper(proj_path: Path, aaf_config: AAFConfig, result: Projec
     if not wrapper_file.exists() or not aaf_config.gradle_distribution_url:
         return
 
-    content = wrapper_file.read_text()
+    content = wrapper_file.read_text(encoding="utf-8")
     m = re.search(r"distributionUrl\s*=\s*(.+)", content)
     if m:
         current_url = m.group(1).strip().replace("\\:", ":")
@@ -298,7 +298,7 @@ def _check_aaf_dependencies(
         dep_file = proj_path / dep_file_name
         if not dep_file.exists():
             continue
-        content = dep_file.read_text()
+        content = dep_file.read_text(encoding="utf-8")
 
         # 查找 com.bihe0832.android:xxx:version
         for m in re.finditer(r"com\.bihe0832\.android:([^:'\"\s]+):([^'\"\s$]+)", content):
@@ -341,7 +341,7 @@ def _check_compose_config(
     if not target_file.exists():
         return
 
-    content = target_file.read_text()
+    content = target_file.read_text(encoding="utf-8")
 
     # 检查 kotlinCompilerExtensionVersion（Compose Compiler 版本）
     if aaf_config.compose_compiler_version:
@@ -376,7 +376,7 @@ def _check_manifest_exported(proj_path: Path, result: ProjectCheckResult, manife
     if not manifest_file.exists():
         return
 
-    content = manifest_file.read_text()
+    content = manifest_file.read_text(encoding="utf-8")
 
     # 查找包含 LAUNCHER category 的 activity 块
     # 简单检查：如果有 LAUNCHER 但没有 exported="true"，标记需要修复
@@ -427,7 +427,7 @@ def _check_template_aaf(proj_path: Path, aaf_root: Path, aaf_config: AAFConfig, 
         src = aaf_root / src_rel
         dst = proj_path / src_rel
         if src.exists() and dst.exists():
-            if src.read_text() != dst.read_text():
+            if src.read_text(encoding="utf-8") != dst.read_text(encoding="utf-8"):
                 result.copy_files.append(src_rel)
         elif src.exists() and not dst.exists():
             result.copy_files.append(src_rel)
@@ -463,7 +463,7 @@ def _check_template_android(proj_path: Path, aaf_root: Path, aaf_config: AAFConf
             src = template_aaf / src_rel
             dst = proj_path / src_rel
             if src.exists() and dst.exists():
-                if src.read_text() != dst.read_text():
+                if src.read_text(encoding="utf-8") != dst.read_text(encoding="utf-8"):
                     result.copy_files.append(src_rel)
 
 
@@ -531,10 +531,10 @@ def sample_apply(project_path: str | Path, report: SampleCheckReport | None = No
             changes.append(f"⚠️ 文件不存在: {diff.file}")
             continue
 
-        content = target_file.read_text()
+        content = target_file.read_text(encoding="utf-8")
         new_content = _apply_diff(content, diff)
         if new_content != content:
-            target_file.write_text(new_content)
+            target_file.write_text(new_content, encoding="utf-8")
             changes.append(f"✅ {diff.file}: {diff.field} {diff.current} → {diff.expected}")
         else:
             changes.append(f"⚠️ 未匹配: {diff.field} in {diff.file}")

@@ -65,7 +65,7 @@ def cmd_doctor(args) -> int:
         log_success("playwright 模块可用")
     except ImportError:
         log_error("playwright 未安装")
-        print(f"   安装命令: zk replay web init")
+        print(f"   安装命令: zk replay init web")
         return 1
 
     # 2. chromium 浏览器
@@ -79,7 +79,7 @@ def cmd_doctor(args) -> int:
             log_success("Chromium 浏览器可用")
         else:
             log_warning("Chromium 可能未安装")
-            print(f"   安装命令: zk replay web init")
+            print(f"   安装命令: zk replay init web")
     except Exception:
         # fallback：直接尝试 launch
         try:
@@ -90,7 +90,7 @@ def cmd_doctor(args) -> int:
             log_success("Chromium 浏览器可用（launch 验证通过）")
         except Exception as e:
             log_error("Chromium 不可用", str(e))
-            print(f"   安装命令: zk replay web init")
+            print(f"   安装命令: zk replay init web")
             return 1
 
     log_success("环境检查完成")

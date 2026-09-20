@@ -6,10 +6,9 @@ progname="${progname%.sh}"
 # usage: check_elf_alignment.sh [path to *.so files|path to *.apk]
 
 cleanup_trap() {
-  if [ -n "${tmp}" -a -d "${tmp}" ]; then
-    rm -rf ${tmp}
+  if [ -n "${tmp:-}" ] && [ -d "${tmp:-}" ]; then
+    rm -rf "${tmp}"
   fi
-  exit $1
 }
 
 usage() {
@@ -61,10 +60,18 @@ if [[ "${dir}" == *.apk ]]; then
   fi
 
   dir_filename=$(basename "${dir}")
-  _zixie_tmp="${ZIXIEKIT_TMP:-$HOME/.zixiekit}"
-  mkdir -p "${_zixie_tmp}/skill/apk-16kb-check"
-  tmp=$(mktemp -d --tmpdir="${_zixie_tmp}/skill/apk-16kb-check" "${dir_filename%.apk}_out_XXXXX")
-  unzip "${dir}" lib/* -d "${tmp}" >/dev/null 2>&1
+  tmp=$(mktemp -d -t "${dir_filename%.apk}_out_XXXXX")
+  # 临时关闭 set -e：unzip 返回非零（含无匹配 11）时会触发 set -e 提前退出，
+  # 导致拿不到退出码，需自行捕获后再判断
+  set +e
+  unzip "${dir}" 'lib/*' -d "${tmp}" >/dev/null 2>&1
+  unzip_rc=$?
+  set -e
+  # unzip 无匹配(11)视为「APK 无 .so」的正常情况；其余非零视为解压失败，明确报错
+  if [ "${unzip_rc}" -ne 0 ] && [ "${unzip_rc}" -ne 11 ]; then
+    echo "ERROR: 从 APK 解压原生库失败 (unzip 退出码 ${unzip_rc}): ${dir}" >&2
+    exit 1
+  fi
   dir="${tmp}"
 fi
 
@@ -76,9 +83,7 @@ if [[ "${dir}" == *.apex ]]; then
   echo
 
   dir_filename=$(basename "${dir}")
-  _zixie_tmp="${ZIXIEKIT_TMP:-$HOME/.zixiekit}"
-  mkdir -p "${_zixie_tmp}/skill/apk-16kb-check"
-  tmp=$(mktemp -d --tmpdir="${_zixie_tmp}/skill/apk-16kb-check" "${dir_filename%.apex}_out_XXXXX")
+  tmp=$(mktemp -d -t "${dir_filename%.apex}_out_XXXXX")
   deapexer extract "${dir}" "${tmp}" || { echo "Failed to deapex." && exit 1; }
   dir="${tmp}"
 fi

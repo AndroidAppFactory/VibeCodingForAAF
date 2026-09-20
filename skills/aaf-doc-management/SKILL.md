@@ -1,7 +1,7 @@
 ---
 
 
-version: 1
+version: 2
 category: aaf
 name: aaf-doc-management
 description: AAF 文档管理 - 分析模块源码生成/更新文档。当用户说"生成AAF文档"、"整理AAF文档"、"同步AAF文档"、"更新AAF文档"时使用此 skill

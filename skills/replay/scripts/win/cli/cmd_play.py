@@ -10,10 +10,11 @@ def cmd_play(args) -> int:
 
     target = args.target
     speed = getattr(args, "speed", 1.0)
+    max_delay = getattr(args, "max_delay", None)
 
     # win play 直接调用 run_flow_by_name（素材即 flow）
     try:
-        run_flow_by_name(target, speed=speed)
+        run_flow_by_name(target, speed=speed, max_delay=max_delay)
     except Exception as e:
         log_error("回放失败", str(e))
         return 1

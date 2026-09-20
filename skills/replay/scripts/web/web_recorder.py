@@ -589,8 +589,8 @@ def start_recording(
     print(f"  产物: {rec_dir}")
     print(f"══════════════════════════════")
     print(f"\n💡 后续命令:")
-    print(f"   ▶️  回放:    zk replay web play {name}")
-    print(f"   ✏️  编辑:    zk replay web edit {name}")
-    print(f"   📋 列出:    zk replay web list")
+    print(f"   ▶️  回放:    zk replay play {name}")
+    print(f"   ✏️  编辑:    zk replay edit {name}")
+    print(f"   📋 列出:    zk replay manage")
 
     return events_file, ss_dir

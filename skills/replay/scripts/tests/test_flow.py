@@ -357,3 +357,34 @@ def test_save_cleans_flow_step():
     flow_step = loaded["steps"][0]
     assert "flow_id" in flow_step
     assert "flow_name" not in flow_step  # 已清理
+
+
+def test_resolve_ref_keeps_sub_index_within_flow():
+    """ref 展开的步骤，_sub_index/_sub_total 应为所属子 flow 内进度，而非父层全局序号"""
+    _clean()
+    from core.flow import save_flow, load_flow, resolve_flow_steps
+
+    child = {"name": "子A", "platform": "adb",
+             "steps": [_ev("tap", x=1, y=1), _ev("tap", x=2, y=2), _ev("tap", x=3, y=3)]}
+    save_flow(dict(child))
+
+    parent = {
+        "name": "父",
+        "platform": "adb",
+        "steps": [
+            {"type": "flow", "flow_id": "子A"},
+            _ev("tap", x=9, y=9),
+        ],
+    }
+    save_flow(dict(parent))
+
+    resolved = resolve_flow_steps(load_flow("父"))
+    assert len(resolved) == 4
+    # 子A 3 步：_sub_index = 1,2,3（子 flow 内），_sub_total = 3
+    assert [s["_sub_index"] for s in resolved[:3]] == [1, 2, 3]
+    assert all(s["_sub_total"] == 3 for s in resolved[:3])
+    assert all(s["_flow_name"] == "子A" for s in resolved[:3])
+    # 父自己的步骤：_sub_index = 1，_sub_total = 1
+    assert resolved[3]["_sub_index"] == 1
+    assert resolved[3]["_sub_total"] == 1
+    assert resolved[3]["_flow_name"] == "父"

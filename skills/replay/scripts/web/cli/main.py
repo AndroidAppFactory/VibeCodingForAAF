@@ -74,6 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         from cli.cmd_doctor import cmd_install
         return cmd_install(args)
 
+    elif args.command == "install":
+        from cli.cmd_doctor import cmd_install
+        return cmd_install(args)
+
     elif args.command == "doctor":
         from cli.cmd_doctor import cmd_doctor
         return cmd_doctor(args)
